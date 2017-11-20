@@ -54,6 +54,6 @@ typedef void *__builtin_va_list;
 
 
 #define NEW_H
-#include "TeensyMotorControl_PsuedoCode.ino"
+#include "TeensyMotorControl.ino"
 #endif
 #endif

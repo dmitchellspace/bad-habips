@@ -4,9 +4,9 @@
 #define _GPIO_h
 
 #if defined(ARDUINO) && ARDUINO >= 100
-	#include "wprogram.h"
+#include "wprogram.h"
 #else
-	#include "WProgram.h"
+#include "WProgram.h"
 #endif
 
 
