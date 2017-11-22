@@ -13,3 +13,4 @@
 #endif
 
 void Init_MotorInterface();
+void Init_ADC();

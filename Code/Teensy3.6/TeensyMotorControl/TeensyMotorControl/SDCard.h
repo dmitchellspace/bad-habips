@@ -13,3 +13,4 @@
 #endif
 
 void SDCard_Setup();
+extern int SDCardPresent; //Is the SD Card Present?
