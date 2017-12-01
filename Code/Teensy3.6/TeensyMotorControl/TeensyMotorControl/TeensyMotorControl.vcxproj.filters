@@ -17,5 +17,47 @@
   <ItemGroup>
     <None Include="TeensyMotorControl.ino" />
   </ItemGroup>
- 
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\Clocks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\GPIO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\I2C.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\MotorControl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SDCard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\Clocks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\GPIO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\I2C.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\MotorControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SDCard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SPI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\__vm\.TeensyMotorControl.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

@@ -13,10 +13,6 @@ int date = 20; //Used For Real Time Clock
 int mnth = 11; //Used For Real Time Clock
 int yr = 2017; //Used For Real Time Clock
 
-void Init_Clock() {
-	//Initliaze Clocks
-}
-
 void Init_RTC() {
 	setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
 

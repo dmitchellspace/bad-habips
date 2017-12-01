@@ -14,3 +14,4 @@
 
 void Init_MotorInterface();
 void Init_ADC();
+void Init_PWM();

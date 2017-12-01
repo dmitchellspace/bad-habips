@@ -12,5 +12,4 @@
 
 #endif
 
-void Init_Clock();
 void Init_RTC();

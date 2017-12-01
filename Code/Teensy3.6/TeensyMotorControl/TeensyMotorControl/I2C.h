@@ -13,3 +13,5 @@
 #endif
 
 void Init_I2C();
+void ResetPressureSensor();
+void SetTemperaturePointer();

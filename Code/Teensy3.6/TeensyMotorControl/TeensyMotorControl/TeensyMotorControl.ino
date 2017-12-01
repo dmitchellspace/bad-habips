@@ -14,12 +14,17 @@ Version 2:
 	SD Card Initlization
 	Simple Self Test run on RTC and SD Card, Results printed to Comm Port
 	If SD Card Fails to Initilize, it will continue to retry in the main loop.
+Version 3:
+	Uploaded on 12/01/2017
+	LED is blinked three times quickly to show user SD card is not working.
+	I2C Initiliazation is setup.  Verified correct address and R/W commands were being TXd
+	Without any of the components we cannot verify it is working, because we don't get an 
+	acknowledge byte back.  A RX interrupt still needs to be setup.
+	Pins for motor control are setup.
+	PWM is setup and verified.  PWM signal will be running at 1kHz as opposed to 50 Hz from last semester.
 */
 
-//DEBUG
-int Time;
-int InitTime;
-//DEBUG
+int BootTime;
 
 #include "Clocks.h"
 #include "GPIO.h"
@@ -30,27 +35,23 @@ int InitTime;
 
 void setup() { //Only runs once upon powering up the board
 
-	//DEBUG
 	Serial.begin(9600); //Set Up Serial Interface
-	while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT RESPONDS MAKE SURE TO TAKE OUT
-	Time = millis();
 	//DEBUG
-
+	while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT 
+	//RESPONDS MAKE SURE TO TAKE OUT
+	//DEBUG
+	BootTime = millis();
 	Init_GPIO(); //Do initilization on GPIO Pins
 	Init_RTC(); //Initiliaze Real Time Clock
 	SDCard_Setup();//Do initial setup for SD Card
-	Init_Clock(); //Initiliaze System Clocks
-	Init_SPI();//Initiliaze SPI interface
+	Init_SPI();//Init\iliaze SPI interface
 	Init_I2C();//Initiliaze I2C interface
 	Init_MotorInterface(); //Initliaze Motor Interface
-	Init_ADC(); //Initliaze ADC, used for feedback from Motor
 
-	//DEBUG
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
-	Serial.print(millis() - Time); //Display Time it took to initilize
+	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.print("ms");//Time is in milliseconds
 	Serial.println(); //New Line
-	//DEBUG
 }
 
 // the loop function runs over and over again until power down or reset
@@ -75,7 +76,11 @@ void CollectData() {
 
 		 if (SDCardPresent == 0) { //SD Card is not present
 			SDCard_Setup(); //Try to set it up again
+			for (int i = 1; i < 7;i++) {//Blink the LED Three Quick Times to let the user know SD Card is not working
+				GPIOC_PTOR ^= 0x20;
+				delay(200);
 			}
+		}
 		else {//SD Card is there, store data
 			//Collect Data When Reaction Wheel is Not On
 		}

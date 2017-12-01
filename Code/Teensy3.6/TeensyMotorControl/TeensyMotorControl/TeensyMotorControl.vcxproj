@@ -47,13 +47,18 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\TeensyMotorControl;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\Arduino\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\avr;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\util;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\utils;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\avr;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\tools\arm\arm-none-eabi\include;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\TeensyMotorControl;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\Time;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\Wire;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\DS1307RTC;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\SD;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\SPI;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\SD\utility;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries\Wire\utility;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\Arduino\libraries;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\avr;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\util;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\utils;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy\avr\cores\teensy3\avr;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\tools\arm\arm-none-eabi\include;$(ProjectDir)..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Arduino\hardware\teensy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>$(ProjectDir)__vm\.TeensyMotorControl.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <IgnoreStandardIncludePath>false</IgnoreStandardIncludePath>
       <PreprocessorDefinitions>__HARDWARE_MK66fx1m0__;__HARDWARE_MK66FX1M0__;__MK66FX1M0__;TEENSYDUINO=140;ARDUINO=10805;F_CPU=180000000;USB_SERIAL;LAYOUT_US_ENGLISH;__cplusplus=201103L;_VMICRO_INTELLISENSE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>WireKinetis.h;WireKinetis.cpp;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateMapFile>false</GenerateMapFile>
+      <MapExports>false</MapExports>
+      <AssemblyDebug>false</AssemblyDebug>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -83,10 +88,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\Clocks.h" />
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\GPIO.h" />
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\I2C.h" />
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\MotorControl.h" />
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SDCard.h" />
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SPI.h" />
     <ClInclude Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\__vm\.TeensyMotorControl.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\Clocks.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\GPIO.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\I2C.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\MotorControl.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SDCard.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\..\..\..\..\Brandon%27s pc\Documents\Fall 2017\MSD\Github\bad-habips\Code\Teensy3.6\TeensyMotorControl\TeensyMotorControl\SPI.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
