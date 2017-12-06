@@ -22,6 +22,13 @@ Version 3:
 	acknowledge byte back.  A RX interrupt still needs to be setup.
 	Pins for motor control are setup.
 	PWM is setup and verified.  PWM signal will be running at 1kHz as opposed to 50 Hz from last semester.
+Version 4:
+	Uploaded on 12/06/2017
+	ADC Initialization was implemented and successfully tested.
+	A calibration of the unit is performed and the Successfull/Not Successful is determined based off of the cal results.
+	The ISR has not yet been integrated.
+	Frequency of PWM signal was changed to 75Hz.  This allows for more varience in the PW.
+	SPI has been initialized.  Nothing has been tested yet, this still needs to be done.  Interrupts need to be set up.
 */
 
 int BootTime;
@@ -41,6 +48,7 @@ void setup() { //Only runs once upon powering up the board
 	//RESPONDS MAKE SURE TO TAKE OUT
 	//DEBUG
 	BootTime = millis();
+	ADC_Calibration(); //Caibration takes some time to complete, so initiate it before anything else is done
 	Init_GPIO(); //Do initilization on GPIO Pins
 	Init_RTC(); //Initiliaze Real Time Clock
 	SDCard_Setup();//Do initial setup for SD Card

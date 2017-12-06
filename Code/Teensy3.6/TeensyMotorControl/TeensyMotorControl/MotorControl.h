@@ -15,3 +15,5 @@
 void Init_MotorInterface();
 void Init_ADC();
 void Init_PWM();
+void BeginADCConversion();
+void ADC_Calibration();
