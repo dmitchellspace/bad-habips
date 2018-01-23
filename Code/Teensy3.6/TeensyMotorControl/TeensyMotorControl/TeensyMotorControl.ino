@@ -29,9 +29,26 @@ Version 4:
 	The ISR has not yet been integrated.
 	Frequency of PWM signal was changed to 75Hz.  This allows for more varience in the PW.
 	SPI has been initialized.  Nothing has been tested yet, this still needs to be done.  Interrupts need to be set up.
+Version 5:
+	Uploaded on 01/23/2018
+	ADC Interrupt Setup
+	SPI transmitting to IMU verified.
+	Self Test added where SPI will write to IMU "WHO_AM_I" register. If the correct response is heard back, it will mark it as a pass.
+	Right now requests are being made for the IMU data, but nothing is being recorded.
+	The IMU read function is set up to read from either of the two chips.  The chip select is an input to the function.
+	The IMU that we currently have was wired as an IMU0 and then as an IMU1.  It was verified that we are able to talk to it in either configuration.
 */
 
+//Start Variable Declaration
+
 int BootTime;
+byte PressTempFlag = 0; //The pressure and temperature only needs to be collected once a second, and so a timer will be set up to indicate when it is time to check
+
+//This data is used to send the address to the IMU
+const byte XAccelAddress = 0x28, YAccelAddress = 0x2A, ZAccelAddress = 0x2C, XGyroAddress = 0x18, YGyroAddress = 0x1A, ZGyroAddress = 0x1C, IMU0 = 0, IMU1 = 1;
+int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
+
+//End Variable Declaration
 
 #include "Clocks.h"
 #include "GPIO.h"
@@ -58,8 +75,7 @@ void setup() { //Only runs once upon powering up the board
 
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
-	Serial.print("ms");//Time is in milliseconds
-	Serial.println(); //New Line
+	Serial.println("ms");//Time is in milliseconds
 }
 
 // the loop function runs over and over again until power down or reset
@@ -73,7 +89,7 @@ void loop() {//Main Loop
 }
 
 void CollectData() {
-	 while (!digitalRead(PIN_A3)) { //Stay in this loop until Reaction Wheel is turned on
+	while (!digitalRead(PIN_A3)) { //Stay in this loop until Reaction Wheel is turned on
 		 
 		 GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
 		 GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
@@ -90,10 +106,26 @@ void CollectData() {
 			}
 		}
 		else {//SD Card is there, store data
-			//Collect Data When Reaction Wheel is Not On
-		}
-	}
-}
+
+			XAccelData = IMURead(XAccelAddress, 0, IMU1); //Collect X Accel
+			delay(1000); //DEBUG
+			YAccelData = IMURead(YAccelAddress, 0, IMU1); //Collect Y Accel
+			delay(1000); //DEBUG
+			ZAccelData = IMURead(ZAccelAddress, 0, IMU1); //Collect Z Accel
+			delay(1000); //DEBUG
+			XGyroData = IMURead(XGyroAddress, 0, IMU1); //Collect X Gyro
+			delay(1000); //DEBUG
+			YGyroData = IMURead(YGyroAddress, 0, IMU1); //Collect Y Gyro
+			delay(1000); //DEBUG
+			ZGyroData = IMURead(ZGyroAddress, 0, IMU1); //Collect Z Gyro
+			
+			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
+				PressTempFlag = 0; //Reset Flag
+			} //End Pressure Temperature if
+
+		} //End SD card else
+	} //End While statement
+} //End collect Data
 
 void ReactionWheelOn() {
 	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).

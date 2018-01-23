@@ -9,6 +9,7 @@ const int PWMCurrentControl = 10;
 const int MotorSpeed_Feedback = 15;
 const int MotorCurrent_Feedback = 16;
 const int MotorControl_Input = 20;
+int ADCData;
 
 #include "MotorControl.h"
 
@@ -55,12 +56,15 @@ void Init_PWM() {
 	Serial.println("PWM Successfully Initialized");
 }
 
-void BeginADCConversion() { //Need to set up interrupt
-	ADC0_SC1A = 0x0E; //Set up for correct channel, writing to this register starts a conversion
-	//ADC0_SC1A = 0x4E; //Set up for correct channel, Enables Interrupt upon Completion
-	//Write to ADC0_SC1A
+void BeginADCConversion() {
+	NVIC_ISER1 |= 0x80; //Enable Interrupt for ADC0
+	ADC0_SC1A = 0x4E; //Set up for correct channel, Enables Interrupt upon Completion
 }
 
 void ADC_Calibration() {
 	ADC0_SC3 = 0xC0; //Begins calibration
+}
+
+void adc0_isr() {
+	ADCData = ADC0_RA; //Reading of this register clears interrupt
 }

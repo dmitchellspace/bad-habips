@@ -15,3 +15,5 @@
 void Init_SPI();
 void Init_IMU_SPI();
 void Init_DAQCS_SPI();
+int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber);
+void IMUSelfTest();
