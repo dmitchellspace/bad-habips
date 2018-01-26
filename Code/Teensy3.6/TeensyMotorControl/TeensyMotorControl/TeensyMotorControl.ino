@@ -37,6 +37,13 @@ Version 5:
 	Right now requests are being made for the IMU data, but nothing is being recorded.
 	The IMU read function is set up to read from either of the two chips.  The chip select is an input to the function.
 	The IMU that we currently have was wired as an IMU0 and then as an IMU1.  It was verified that we are able to talk to it in either configuration.
+Version 6:
+	Uploaded on 01/26/2018
+	Added timeout on SPI transactions.  1ms timeout
+	Right now I'm setting a flag that says a timeout happened, but not actually doing anything with that flag.  This functionality needs to be added.
+	Added Data Write function for SPI0
+	Data coming back from the IMU is not being handled right now.  Matt C. is going to look into how the data needs to be handled.  This will probably be a couple versions from now.
+	It is verified that everything on the IMU is being enabled and that the data coming back changes once the IMU is moved around.
 */
 
 //Start Variable Declaration
@@ -45,7 +52,7 @@ int BootTime;
 byte PressTempFlag = 0; //The pressure and temperature only needs to be collected once a second, and so a timer will be set up to indicate when it is time to check
 
 //This data is used to send the address to the IMU
-const byte XAccelAddress = 0x28, YAccelAddress = 0x2A, ZAccelAddress = 0x2C, XGyroAddress = 0x18, YGyroAddress = 0x1A, ZGyroAddress = 0x1C, IMU0 = 0, IMU1 = 1;
+const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
 int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 
 //End Variable Declaration
@@ -107,16 +114,13 @@ void CollectData() {
 		}
 		else {//SD Card is there, store data
 
+			//TODO Right now all of them are reading from IMU1.  At some point code will need to be added in order to make it possible to choose which IMU to read from.
+			//TODO this data is still in twos compliment.  This needs to be undone before anything can be done with it to the motor.  Once Matt C. looks into this the code will be implemented.
 			XAccelData = IMURead(XAccelAddress, 0, IMU1); //Collect X Accel
-			delay(1000); //DEBUG
 			YAccelData = IMURead(YAccelAddress, 0, IMU1); //Collect Y Accel
-			delay(1000); //DEBUG
 			ZAccelData = IMURead(ZAccelAddress, 0, IMU1); //Collect Z Accel
-			delay(1000); //DEBUG
 			XGyroData = IMURead(XGyroAddress, 0, IMU1); //Collect X Gyro
-			delay(1000); //DEBUG
 			YGyroData = IMURead(YGyroAddress, 0, IMU1); //Collect Y Gyro
-			delay(1000); //DEBUG
 			ZGyroData = IMURead(ZGyroAddress, 0, IMU1); //Collect Z Gyro
 			
 			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?

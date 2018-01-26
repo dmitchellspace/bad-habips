@@ -3,10 +3,13 @@
 // 
 
 #include "SPI.h"
-byte SPI0RxData, SPI0CompleteFlag = 0; //This is all used for SPI0
-const int EnableSPI = 0x40000000, IMU_ST_Result = 0x68; //This is the bit that enables the SPI module.  This will enable/disable the run state of the SPI module (SPIx_SR)
-const byte IMU_ST_Address = 0xF; //The IMU has a built in register that can be used for ST.  This is the address for it.
+
+const int IMU_ST_Result = 0x68; //This is what the ST data should return.
+const byte IMU_ST_Address = 0xF, EnableGyroAddress = 0x1E, TurnOnGyroAddress = 0x10, EnableAccelAddress = 0x1F, TurnOnAccelAddress = 0x20, EnableGyroData = 0x38;
+const byte TurnOnGyroData = 0xC0, EnableAccelData = 0x38, TurnOnAccelData = 0xC0;
 int IMU_ST_Data;
+byte SPI0RxData, SPI0CompleteFlag = 0; //This is all used for SPI0
+
 
 
 void Init_SPI() {//Initiliaze SPI interface
@@ -92,13 +95,22 @@ void IMUSelfTest() {
 	else {
 		Serial.println("IMU 1 Selftest Failed");
 	}
+
+	IMUWrite(EnableAccelAddress, EnableAccelData, 0); //Enable Accel on IMU0
+	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 0); //Enable Accel on IMU0
+	IMUWrite(EnableGyroAddress, EnableGyroData, 0); //Enable Gyro on IMU0
+	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 0); //Enable Gyro on IMU0
+	IMUWrite(EnableAccelAddress, EnableAccelData, 1); //Enable Accel on IMU1
+	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 1); //Enable Accel on IMU1
+	IMUWrite(EnableGyroAddress, EnableGyroData, 1); //Enalbe Gyro on IMU1
+	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 1); //Enable Gyro on IMU1
 }
 
 int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 	//Some of the data requires data from two registers while some data needs only one register.  The SingleReg input is a binary value saying if a second read is 
 	//neccessary.  A 1 in this value means only one read is neccessary.
-	byte TxData; //This might need to leave the function and become overarching
-	int SPI0Data = 0; //Initialize to 0
+	byte TxData, DataNotValid = 0; //This might need to leave the function and become overarching.  Data not Valid defaults to data valid
+	int SPI0Data = 0, Timeout = 0; //Initialize to 0
 	for (byte counter = 1; counter < 3; counter++) { //Need to do two words to read from the IMU.  See IMU Data sheet for detail
 		TxData = (TxAddress & 0xF0) >> 4 | (TxAddress & 0x0F) << 4; //This reverses the order of the address
 		TxData = (TxData & 0xCC) >> 2 | (TxData & 0x33) << 2; //This reverses the order of the address
@@ -113,11 +125,18 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 			SPI0_PUSHR = 0x10010000 | TxData; //CTAR1 is used.  Bit 16 for CS0
 		}
 		
-		TxAddress++;
+		Timeout = millis();
+		TxAddress--; //Next Address
 
-		while (SPI0CompleteFlag == 0) {
-			delay(0);  //Wait until Transaction is complete
-		}
+		while (SPI0CompleteFlag == 0) {//Wait until the transaction is complete
+			delay(0);
+			if (millis() - Timeout > 1){//Wait until Transaction is complete
+				SPI0CompleteFlag = 1; //Trick it into leaving
+				DataNotValid = 1; //Set Data not valid flag.
+				//TODO Do something with the data not valid flag.
+			}//End If
+
+		} //End while
 
 		SPI0CompleteFlag = 0; //Clear the flag
 		digitalWrite(9, HIGH); // Let go of CS Line.
@@ -127,12 +146,56 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 			SPI0Data = SPI0RxData;		
 		}
 		else {
-			//Needs to be set up in order to get 2 word data
-			SPI0Data = SPI0RxData;
+			if (counter == 1) {//First set of Data
+				SPI0Data = SPI0RxData;
+				SPI0Data = ((SPI0Data & 0x00FF) << 8) | ((SPI0Data & 0xFF00) >> 8); //This is a byte swap
+			}
+			else { //Second set of data
+				SPI0Data = ((SPI0Data & 0xFF00) | SPI0RxData); //Keep the upper most byte and put in the second byte
+			}
 		}
 	}//End for loop
-
 	return SPI0Data;
+}
+
+void IMUWrite(byte TxAddress, byte TxData, byte IMUNumber) {
+	byte DataNotValid = 0; //This might need to leave the function and become overarching.  Data not Valid defaults to data valid
+	int SPI0TxData = 0, SPI0TempAddress = 0, Timeout = 0; //Initialize to 0
+
+		SPI0TempAddress = (TxAddress & 0xF0) >> 4 | (TxAddress & 0x0F) << 4; //This reverses the order of the address
+		SPI0TempAddress = (SPI0TempAddress & 0xCC) >> 2 | (SPI0TempAddress & 0x33) << 2; //This reverses the order of the address
+		SPI0TempAddress = (SPI0TempAddress & 0xAA) >> 1 | (SPI0TempAddress & 0x55) << 1; //This reverses the order of the address
+		
+		SPI0TxData = (TxData & 0xF0) >> 4 | (TxData & 0x0F) << 4; //This reverses the order of the data
+		SPI0TxData = (SPI0TxData & 0xCC) >> 2 | (SPI0TxData & 0x33) << 2; //This reverses the order of the data
+		SPI0TxData = (SPI0TxData & 0xAA) >> 1 | (SPI0TxData & 0x55) << 1; //This reverses the order of the data
+
+		SPI0TxData = ((SPI0TxData & 0x00FF) << 8) | ((SPI0TxData & 0xFF00) >> 8); //This puts the data in the MSB
+		SPI0TxData = (SPI0TxData & 0xFF00) | SPI0TempAddress; //Puts the address in the LSB
+
+		if (IMUNumber == 0) { //IMU 0
+			digitalWrite(9, LOW); // Pull the CS Line.
+			SPI0_PUSHR = 0x10000000 | SPI0TxData; //CTAR1 is used.
+		}
+		else { //IMU 1
+			SPI0_PUSHR = 0x10010000 | SPI0TxData; //CTAR1 is used.  Bit 16 for CS0
+		}
+
+		Timeout = millis();
+
+		while (SPI0CompleteFlag == 0) {//Wait until the transaction is complete
+			delay(0);
+			if (millis() - Timeout > 1) {//Wait until Transaction is complete
+				SPI0CompleteFlag = 1; //Trick it into leaving
+				DataNotValid = 1; //Set Data not valid flag.
+								  //TODO Do something with the data not valid flag.
+			}//End If
+
+		} //End while
+
+		SPI0CompleteFlag = 0; //Clear the flag
+		digitalWrite(9, HIGH); // Let go of CS Line.
+
 }
 
 void spi0_isr() {

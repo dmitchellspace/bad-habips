@@ -13,7 +13,7 @@ int date = 20; //Used For Real Time Clock
 int mnth = 11; //Used For Real Time Clock
 int yr = 2017; //Used For Real Time Clock
 
-void Init_RTC() {
+void Init_RTC() { //TODO Look at adding code to check if the RTC was already set up (ie. The Teensy lost power but the RTC did not)
 	setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
 
 	if (timeStatus() == timeSet) { //Check if RTC was successfully setup
