@@ -13,4 +13,6 @@
 #endif
 
 void SDCard_Setup();
+void SDCard_Write(int SDCardData, byte Timestamp);
+void SDCard_NewLine();
 extern int SDCardPresent; //Is the SD Card Present?

@@ -44,6 +44,14 @@ Version 6:
 	Added Data Write function for SPI0
 	Data coming back from the IMU is not being handled right now.  Matt C. is going to look into how the data needs to be handled.  This will probably be a couple versions from now.
 	It is verified that everything on the IMU is being enabled and that the data coming back changes once the IMU is moved around.
+Version 7
+	Uploaded on 01/29/2018
+	Added function to get the current time from the RTC.  It populates an array as [sec, min, hr, day, month, year]
+	Added Data Write function to the SD Card
+	Added New line write function to the data card.
+	Right now I have it working where it prints all of the data on one line with one timestamp for all 6 IMU data pieces.  
+	Each set of 6 reads/write takes approximately 60ms, so one time stamp is fine for this.
+	Add timer to trigger an interrupt every second.  This says that its time to get the pressure and temp functions.  Inside this loop the Heartbeat function is called which flashes the LED.
 */
 
 //Start Variable Declaration
@@ -55,6 +63,8 @@ byte PressTempFlag = 0; //The pressure and temperature only needs to be collecte
 const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
 int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 
+//This is for the SD Card writes
+const byte Timestamp = 1, NoTimestamp = 0;
 //End Variable Declaration
 
 #include "Clocks.h"
@@ -79,10 +89,12 @@ void setup() { //Only runs once upon powering up the board
 	Init_SPI();//Init\iliaze SPI interface
 	Init_I2C();//Initiliaze I2C interface
 	Init_MotorInterface(); //Initliaze Motor Interface
+	Init1SecTimer(); //Init Timer to trigger an interrupt every 1 second
 
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
+
 }
 
 // the loop function runs over and over again until power down or reset
@@ -97,13 +109,6 @@ void loop() {//Main Loop
 
 void CollectData() {
 	while (!digitalRead(PIN_A3)) { //Stay in this loop until Reaction Wheel is turned on
-		 
-		 GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
-		 GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
-
-		 //DEBUG
-		 delay(1000);  // wait for a second
-		 //DEBUG
 
 		 if (SDCardPresent == 0) { //SD Card is not present
 			SDCard_Setup(); //Try to set it up again
@@ -113,19 +118,30 @@ void CollectData() {
 			}
 		}
 		else {//SD Card is there, store data
-
 			//TODO Right now all of them are reading from IMU1.  At some point code will need to be added in order to make it possible to choose which IMU to read from.
 			//TODO this data is still in twos compliment.  This needs to be undone before anything can be done with it to the motor.  Once Matt C. looks into this the code will be implemented.
 			XAccelData = IMURead(XAccelAddress, 0, IMU1); //Collect X Accel
+			SDCard_Write(XAccelData, Timestamp); //Write it to the SD Card
 			YAccelData = IMURead(YAccelAddress, 0, IMU1); //Collect Y Accel
+			SDCard_Write(YAccelData, NoTimestamp); //Write it to the SD Card
 			ZAccelData = IMURead(ZAccelAddress, 0, IMU1); //Collect Z Accel
+			SDCard_Write(ZAccelData, NoTimestamp); //Write it to the SD Card
 			XGyroData = IMURead(XGyroAddress, 0, IMU1); //Collect X Gyro
+			SDCard_Write(XGyroData, NoTimestamp); //Write it to the SD Card
 			YGyroData = IMURead(YGyroAddress, 0, IMU1); //Collect Y Gyro
+			SDCard_Write(YGyroData, NoTimestamp); //Write it to the SD Card
 			ZGyroData = IMURead(ZGyroAddress, 0, IMU1); //Collect Z Gyro
-			
+			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
+
 			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
 				PressTempFlag = 0; //Reset Flag
+				Heartbeat(); //1 second heartbeat
+				//TODO SD Card Writes
+				SDCard_NewLine(); //New Line
 			} //End Pressure Temperature if
+			else {
+				SDCard_NewLine();
+			}
 
 		} //End SD card else
 	} //End While statement
@@ -142,4 +158,14 @@ void ReactionWheelOn() {
 	while (digitalRead(PIN_A3)) {//Stay in this loop until Reaction Wheel is turned off
 		//Run Reaction Wheel Algorithim
 	}
+}
+
+void Heartbeat() {
+	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
+	GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
+}
+
+ void ftm0_isr() { //1 Second Timer
+	FTM0_SC &= ~0x80; //Clear the flag
+	PressTempFlag = 1;
 }

@@ -13,3 +13,6 @@
 #endif
 
 void Init_RTC();
+void GetClock();
+void Init1SecTimer();
+extern int RTCCurrentData[6];
