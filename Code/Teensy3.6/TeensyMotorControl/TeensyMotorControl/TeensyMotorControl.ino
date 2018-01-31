@@ -44,7 +44,7 @@ Version 6:
 	Added Data Write function for SPI0
 	Data coming back from the IMU is not being handled right now.  Matt C. is going to look into how the data needs to be handled.  This will probably be a couple versions from now.
 	It is verified that everything on the IMU is being enabled and that the data coming back changes once the IMU is moved around.
-Version 7
+Version 7:
 	Uploaded on 01/29/2018
 	Added function to get the current time from the RTC.  It populates an array as [sec, min, hr, day, month, year]
 	Added Data Write function to the SD Card
@@ -52,7 +52,15 @@ Version 7
 	Right now I have it working where it prints all of the data on one line with one timestamp for all 6 IMU data pieces.  
 	Each set of 6 reads/write takes approximately 60ms, so one time stamp is fine for this.
 	Add timer to trigger an interrupt every second.  This says that its time to get the pressure and temp functions.  Inside this loop the Heartbeat function is called which flashes the LED.
-*/
+Version 8:
+	Uploaded on 01/30/2018
+	Made DataNotValid a global variable so that it can be checked anywhere.
+	Made SD Card file comma seperated
+	Added IMU Select.  If IMU0 passes initialization it will gather data from that.  If it fails initialization it will gather data from IMU1.
+	Added check for SPI0 timeout.  It will print an error message on the SD card as well as reinitialize the SPI bus.
+	Added Twos Compliment calculation for all the IMU data.  With the two's compliment done, the reads/writes take 20ms.
+	Change file type on SD Card to .csv
+	*/
 
 //Start Variable Declaration
 
@@ -64,8 +72,9 @@ const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGy
 int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 
 //This is for the SD Card writes
-const byte Timestamp = 1, NoTimestamp = 0;
+const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
 //End Variable Declaration
+
 
 #include "Clocks.h"
 #include "GPIO.h"
@@ -118,19 +127,29 @@ void CollectData() {
 			}
 		}
 		else {//SD Card is there, store data
-			//TODO Right now all of them are reading from IMU1.  At some point code will need to be added in order to make it possible to choose which IMU to read from.
-			//TODO this data is still in twos compliment.  This needs to be undone before anything can be done with it to the motor.  Once Matt C. looks into this the code will be implemented.
-			XAccelData = IMURead(XAccelAddress, 0, IMU1); //Collect X Accel
+			
+			XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
+			XAccelData = TwosCompliment(XAccelData); //Two's compliment
 			SDCard_Write(XAccelData, Timestamp); //Write it to the SD Card
-			YAccelData = IMURead(YAccelAddress, 0, IMU1); //Collect Y Accel
+
+			YAccelData = IMURead(YAccelAddress, 0, IMUSelect); //Collect Y Accel
+			YAccelData = TwosCompliment(YAccelData); //Two's compliment
 			SDCard_Write(YAccelData, NoTimestamp); //Write it to the SD Card
-			ZAccelData = IMURead(ZAccelAddress, 0, IMU1); //Collect Z Accel
+			
+			ZAccelData = IMURead(ZAccelAddress, 0, IMUSelect); //Collect Z Accel
+			ZAccelData = TwosCompliment(ZAccelData); //Two's compliment
 			SDCard_Write(ZAccelData, NoTimestamp); //Write it to the SD Card
-			XGyroData = IMURead(XGyroAddress, 0, IMU1); //Collect X Gyro
+			
+			XGyroData = IMURead(XGyroAddress, 0, IMUSelect); //Collect X Gyro
+			XGyroData = TwosCompliment(XGyroData); //Two's compliment
 			SDCard_Write(XGyroData, NoTimestamp); //Write it to the SD Card
-			YGyroData = IMURead(YGyroAddress, 0, IMU1); //Collect Y Gyro
+			
+			YGyroData = IMURead(YGyroAddress, 0, IMUSelect); //Collect Y Gyro
+			YGyroData = TwosCompliment(YGyroData); //Two's compliment
 			SDCard_Write(YGyroData, NoTimestamp); //Write it to the SD Card
-			ZGyroData = IMURead(ZGyroAddress, 0, IMU1); //Collect Z Gyro
+			
+			ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect); //Collect Z Gyro
+			ZGyroData = TwosCompliment(ZGyroData); //Two's compliment
 			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
 
 			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
@@ -141,6 +160,13 @@ void CollectData() {
 			} //End Pressure Temperature if
 			else {
 				SDCard_NewLine();
+			}
+			
+			if (DataNotValidSPI0 == 1) { //If SPI0 Timeout Occured
+				Init_IMU_SPI(); //Reset SPI0
+				IMUSelfTest(); //Test Them
+				SDCard_NewLine(); //Enter New Line
+				SDCard_SensorFailure(SPI0Timeout); //Print Error Message
 			}
 
 		} //End SD card else
@@ -158,6 +184,19 @@ void ReactionWheelOn() {
 	while (digitalRead(PIN_A3)) {//Stay in this loop until Reaction Wheel is turned off
 		//Run Reaction Wheel Algorithim
 	}
+}
+
+int TwosCompliment(int Argument) {//This does the two's compliment conversion of a 16 bit number
+	int Solution;
+	if (0x8000 & Argument) { //Is it a negative number?
+		Solution = Argument ^ 0xFFFF; //Flip all the bits
+		Solution++; //Add one
+		Solution = Solution * -1; //Make it negative
+	}
+	else { //It it not
+		Solution = Argument;
+	}
+	return Solution;
 }
 
 void Heartbeat() {

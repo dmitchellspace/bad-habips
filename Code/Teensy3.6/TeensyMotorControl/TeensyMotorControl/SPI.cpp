@@ -6,16 +6,16 @@
 
 const int IMU_ST_Result = 0x68; //This is what the ST data should return.
 const byte IMU_ST_Address = 0xF, EnableGyroAddress = 0x1E, TurnOnGyroAddress = 0x10, EnableAccelAddress = 0x1F, TurnOnAccelAddress = 0x20, EnableGyroData = 0x38;
-const byte TurnOnGyroData = 0xC0, EnableAccelData = 0x38, TurnOnAccelData = 0xC0;
+const byte TurnOnGyroData = 0xD8, EnableAccelData = 0x38, TurnOnAccelData = 0xD0, IMU0 = 0, IMU1 = 1;
 int IMU_ST_Data;
-byte SPI0RxData, SPI0CompleteFlag = 0; //This is all used for SPI0
-
+byte SPI0RxData, SPI0CompleteFlag = 0, DataNotValidSPI0, IMUSelect; //This is all used for SPI0
 
 
 void Init_SPI() {//Initiliaze SPI interface
 	Init_DAQCS_SPI(); //Set up SPI to act as slave with main MSP430
 	Init_IMU_SPI(); //Set up SPI to act as master with IMU
 	IMUSelfTest(); //Run SelfTest
+	//TODO Add Case for if both IMUs fail
 }
 
 void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
@@ -82,9 +82,11 @@ void IMUSelfTest() {
 
 		if (IMU_ST_Data == IMU_ST_Result) {
 			Serial.println("IMU 0 Selftest Passed");
+			IMUSelect = IMU0;
 		}
 		else {
 			Serial.println("IMU 0 Selftest Failed");
+			IMUSelect = IMU1;
 		}
 
 	IMU_ST_Data = IMURead(IMU_ST_Address, 1, 1); //Test IMU1
@@ -97,20 +99,21 @@ void IMUSelfTest() {
 	}
 
 	IMUWrite(EnableAccelAddress, EnableAccelData, 0); //Enable Accel on IMU0
-	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 0); //Enable Accel on IMU0
+	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 0); //Enable Accel on IMU0, +/-4g range (LSB of 0.122mg)
 	IMUWrite(EnableGyroAddress, EnableGyroData, 0); //Enable Gyro on IMU0
-	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 0); //Enable Gyro on IMU0
+	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 0); //Enable Gyro on IMU0, make range +/-2000dps (LSB of 0.061deg/sec)
 	IMUWrite(EnableAccelAddress, EnableAccelData, 1); //Enable Accel on IMU1
-	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 1); //Enable Accel on IMU1
+	IMUWrite(TurnOnAccelAddress, TurnOnAccelData, 1); //Enable Accel on IMU1, +/-4g range (LSB of 0.122mg)
 	IMUWrite(EnableGyroAddress, EnableGyroData, 1); //Enalbe Gyro on IMU1
-	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 1); //Enable Gyro on IMU1
+	IMUWrite(TurnOnGyroAddress, TurnOnGyroData, 1); //Enable Gyro on IMU1, make range +/-2000dps (LSB of 0.061deg/sec)
 }
 
 int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 	//Some of the data requires data from two registers while some data needs only one register.  The SingleReg input is a binary value saying if a second read is 
 	//neccessary.  A 1 in this value means only one read is neccessary.
-	byte TxData, DataNotValid = 0; //This might need to leave the function and become overarching.  Data not Valid defaults to data valid
+	byte TxData; //This might need to leave the function and become overarching. 
 	int SPI0Data = 0, Timeout = 0; //Initialize to 0
+	DataNotValidSPI0 = 0; // Data not Valid defaults to data valid
 	for (byte counter = 1; counter < 3; counter++) { //Need to do two words to read from the IMU.  See IMU Data sheet for detail
 		TxData = (TxAddress & 0xF0) >> 4 | (TxAddress & 0x0F) << 4; //This reverses the order of the address
 		TxData = (TxData & 0xCC) >> 2 | (TxData & 0x33) << 2; //This reverses the order of the address
@@ -132,8 +135,7 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 			delay(0);
 			if (millis() - Timeout > 1){//Wait until Transaction is complete
 				SPI0CompleteFlag = 1; //Trick it into leaving
-				DataNotValid = 1; //Set Data not valid flag.
-				//TODO Do something with the data not valid flag.
+				DataNotValidSPI0 = 1; //Set Data not valid flag.
 			}//End If
 
 		} //End while
@@ -159,8 +161,9 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 }
 
 void IMUWrite(byte TxAddress, byte TxData, byte IMUNumber) {
-	byte DataNotValid = 0; //This might need to leave the function and become overarching.  Data not Valid defaults to data valid
 	int SPI0TxData = 0, SPI0TempAddress = 0, Timeout = 0; //Initialize to 0
+		
+	DataNotValidSPI0 = 0; //Defaults to data valid
 
 		SPI0TempAddress = (TxAddress & 0xF0) >> 4 | (TxAddress & 0x0F) << 4; //This reverses the order of the address
 		SPI0TempAddress = (SPI0TempAddress & 0xCC) >> 2 | (SPI0TempAddress & 0x33) << 2; //This reverses the order of the address
@@ -187,8 +190,7 @@ void IMUWrite(byte TxAddress, byte TxData, byte IMUNumber) {
 			delay(0);
 			if (millis() - Timeout > 1) {//Wait until Transaction is complete
 				SPI0CompleteFlag = 1; //Trick it into leaving
-				DataNotValid = 1; //Set Data not valid flag.
-								  //TODO Do something with the data not valid flag.
+				DataNotValidSPI0 = 1; //Set Data not valid flag.
 			}//End If
 
 		} //End while
