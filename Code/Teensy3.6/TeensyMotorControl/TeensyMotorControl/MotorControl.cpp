@@ -18,11 +18,11 @@ void Init_MotorInterface() {
 	pinMode(MotorEnable, OUTPUT); //Set up Motor Enable as an Output
 	pinMode(MotorDirection, OUTPUT); //Set up motor direction as an output
 	digitalWrite(MotorEnable, LOW); //Init to low
-	digitalWrite(MotorDirection, LOW); //Init to low
+	digitalWrite(MotorDirection, LOW); //Init to low (CCW) High is CW
 	pinMode(MotorSpeed_Feedback, INPUT); //Motor Speed Feedback as Input
 	pinMode(PWMCurrentControl, OUTPUT); //Set up current control as an output
 	digitalWrite(PWMCurrentControl, LOW); //Set output to low.  This may eventually be changed to a PWM signal, 
-				    						//but now it will be left as a GPIO with a low outputl
+				    						//but now it will be left as a GPIO with a low output
 	Init_PWM(); //Initiliaze the PWM Signal
 	Init_ADC(); //Initialize the ADC for speed measurements back from Motor.
 
@@ -67,4 +67,66 @@ void ADC_Calibration() {
 
 void adc0_isr() {
 	ADCData = ADC0_RA; //Reading of this register clears interrupt
+}
+
+void TurnMotorOn() {
+	TPM1_C1V = 1000; //Set PWM Duty Cycle to 5%.  This is below the threshold.  If you set duty cycle to 0 you have to toggle the Enable line to turn the motor on.
+					 //By setting the duty cycle to 5% you dont need to toggle the line, and it wont be turning.
+	digitalWrite(MotorEnable, HIGH); //Enable the motor
+}
+
+void TurnMotorOff() {
+	digitalWrite(MotorEnable, LOW); //Disable the motor
+	TPM1_C1V = 0x00; //Set PWM Duty Cycle to 0%
+}
+
+double EMA(double GyroData, double OldEMA) { 
+	/*
+	EMA is exponential weighted average.  It does a running average of the data (in this case the z-gyro data).  This is used to calculate the reaction wheel speed.
+	This is done because an outlier point won't ruin the flow of data.  The data is weighted based off of a parameter.  For our use the most recent data point will
+	have a weight of 0.8, and the old calculated EMA will have a weight of 0.2.
+	More information can be found here: https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average
+	*/
+	const double weight = 0.8;
+	return (weight * GyroData) + ((1 - weight) * OldEMA);
+
+}
+
+void Motor_Direction(byte Direction) {
+	switch (Direction) {
+	case 0: 
+		digitalWrite(MotorDirection, LOW); //CCW
+		break;
+	case 1: 
+		digitalWrite(MotorDirection, HIGH); //CW
+		break;
+	}
+}
+
+void MotorSpeed(double MotorRPM) {
+	int DutyCycle;
+	// Motor speed input ranges (RPM)
+	const int in_min = 0;
+	const int in_max = 2590;
+
+	// motor controller output ranges (Duty Cycle)
+	const int out_min = 2000;
+	const int out_max = 18000;
+
+	DutyCycle = (MotorRPM - in_min) * ((out_max - out_min) / (in_max - in_min)) + out_min;
+
+	if (DutyCycle < 2000) { //Is it less than the min
+		TPM1_C1V = 2000;
+	}
+	else if (DutyCycle > 18000) { //Is it more than the max
+		TPM1_C1V = 18000;
+	}
+	else {
+		TPM1_C1V = DutyCycle; //Set it to calculated value
+	}
+}
+
+void NoMotorSpeed() {
+	TPM1_C1V = 1000; //This is the 5% that is no spinning but not off
+	//This is done so that the enable line doesn't need to be toggled1
 }

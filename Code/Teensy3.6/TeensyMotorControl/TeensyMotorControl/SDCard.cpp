@@ -40,7 +40,7 @@ void SDCard_Write(int SDCardData, byte Timestamp) {
 		SDFile.print(",");
 	}
 	SDFile.print(SDCardData); //Record the data
-	SDFile.print(","); //Add a tab
+	SDFile.print(","); //Add a comma
 	SDFile.close(); //Close SD File
 }
 
@@ -75,5 +75,13 @@ void NewSDFile() {
 		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed
 		SDCardPresent = 0; //SD Card Failed
 	}
+
 SDFile.close(); //Close SD File
+}
+
+void SDCard_WriteDouble(double SDCardData) {
+	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile.print(SDCardData); //Record the data
+	SDFile.print(","); //Add a tab
+	SDFile.close(); //Close SD File
 }

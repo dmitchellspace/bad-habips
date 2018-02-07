@@ -60,6 +60,20 @@ Version 8:
 	Added check for SPI0 timeout.  It will print an error message on the SD card as well as reinitialize the SPI bus.
 	Added Twos Compliment calculation for all the IMU data.  With the two's compliment done, the reads/writes take 20ms.
 	Change file type on SD Card to .csv
+Version 9:
+	Uploaded on 02/07/2018
+	Added functions to turn motor on/off
+	Started reaction wheel algorithim.  Only going to do LSB conversions for Z-Gyro when the reaction wheel is running.  Otherwise its using recources that we don't
+	need to use.  Data is captured and then converted to rev/min.
+	Took out the two's compliment function.  Now when the data comes back from the IMU it's being placed into a 16 bit short instead of a 32 bit int.  Because it's in 
+	the 16 bit short the compiler recognizes it as a negative number, which makes no need for two's compliment.
+	A button will be used in order to determine if a calibration of the IMU is to be done.  This button needs to be held down on startup in order for the calibration
+	to take place.  This is done so that a calibration does not get accidentally triggered during the flight.
+	Calibration is stored in flash memory.  If the button is not pressed it does not perform the calibration
+	The calibration is only done for the gyroscope.
+	The motor is working about 90% of the way.  The last issue is that the integral won't totally settle to 0 after it is spun fast in one direction and then not at all 
+	in the other direction.  This should fix itself once it is connected to the actual motor.  This is because it will spin it slightly in one direction and that will 
+	drive the integral to zero.  This will be tested once we can mount everything together.
 	*/
 
 //Start Variable Declaration
@@ -70,9 +84,14 @@ byte PressTempFlag = 0; //The pressure and temperature only needs to be collecte
 //This data is used to send the address to the IMU
 const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
 int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
+short XCalibrationData, YCalibrationData, ZCalibrationData;
+int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibrationMemoryLocation = 4; //Each takes two bytes of memory
 
 //This is for the SD Card writes
 const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
+
+//Variables for motor
+const byte CCW = 0, CW = 1;
 //End Variable Declaration
 
 
@@ -82,9 +101,11 @@ const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
 #include "SPI.h"
 #include "SDCard.h"
 #include "MotorControl.h"
+#include <EEPROM.h>
 
 void setup() { //Only runs once upon powering up the board
 
+	delay(1000); //Put in a 1 secon delay so that everything has time to come up.
 	Serial.begin(9600); //Set Up Serial Interface
 	//DEBUG
 	while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT 
@@ -100,6 +121,23 @@ void setup() { //Only runs once upon powering up the board
 	Init_MotorInterface(); //Initliaze Motor Interface
 	Init1SecTimer(); //Init Timer to trigger an interrupt every 1 second
 
+	if (!digitalRead(PIN_A4)) { //This checks the IMU calibration button.  THE BUTTON NEEDS TO BE HELD ON STARTUP IN ORDER FOR THE CALIBRATION TO TAKE PLACE
+		XCalibrationData = XCalibration(); //Perform a cal
+		CalibrationDataWrite(XCalibrationData, XCalibrationMemoryLocation); //Write the data to flash
+		YCalibrationData = YCalibration(); //Perform a cal
+		CalibrationDataWrite(YCalibrationData, YCalibrationMemoryLocation); //Write the data to flash
+		ZCalibrationData = ZCalibration(); //Perform a cal
+		CalibrationDataWrite(ZCalibrationData, ZCalibrationMemoryLocation); //Write the data to flash
+		Serial.println("IMU Calibration Performed");
+	}
+
+	else {
+		XCalibrationData = CalibrationDataRead(XCalibrationMemoryLocation); // Get X from flash
+		YCalibrationData = CalibrationDataRead(YCalibrationMemoryLocation); //Get Y from flash
+		ZCalibrationData = CalibrationDataRead(ZCalibrationMemoryLocation); //Get Z from flash
+		Serial.println("No Calibration Performed.  Values Taken from Memory");
+	}
+
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
@@ -108,7 +146,7 @@ void setup() { //Only runs once upon powering up the board
 
 // the loop function runs over and over again until power down or reset
 void loop() {//Main Loop
-	if (!digitalRead(PIN_A3)) {//Check to see if motor should be turned on
+	if (!digitalRead(PIN_A6)) {//Check to see if motor should be turned on
 		CollectData();
 	}
 	else { //Motor should be on
@@ -117,7 +155,12 @@ void loop() {//Main Loop
 }
 
 void CollectData() {
-	while (!digitalRead(PIN_A3)) { //Stay in this loop until Reaction Wheel is turned on
+	/*
+	None of the LSB conversions will be done on board.  This is an unnecessary use of resources when these calculations can be done on the ground.
+	The only LSB conversion that will be done, is the Z-Gyro and that will only be done when the motor is turned on, because that is necessary for the motor
+	algorithim, it will be done on board.
+	*/
+	while (!digitalRead(PIN_A6)) { //Stay in this loop until Reaction Wheel is turned on
 
 		 if (SDCardPresent == 0) { //SD Card is not present
 			SDCard_Setup(); //Try to set it up again
@@ -127,29 +170,23 @@ void CollectData() {
 			}
 		}
 		else {//SD Card is there, store data
-			
+
 			XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
-			XAccelData = TwosCompliment(XAccelData); //Two's compliment
 			SDCard_Write(XAccelData, Timestamp); //Write it to the SD Card
 
 			YAccelData = IMURead(YAccelAddress, 0, IMUSelect); //Collect Y Accel
-			YAccelData = TwosCompliment(YAccelData); //Two's compliment
 			SDCard_Write(YAccelData, NoTimestamp); //Write it to the SD Card
 			
 			ZAccelData = IMURead(ZAccelAddress, 0, IMUSelect); //Collect Z Accel
-			ZAccelData = TwosCompliment(ZAccelData); //Two's compliment
 			SDCard_Write(ZAccelData, NoTimestamp); //Write it to the SD Card
 			
-			XGyroData = IMURead(XGyroAddress, 0, IMUSelect); //Collect X Gyro
-			XGyroData = TwosCompliment(XGyroData); //Two's compliment
+			XGyroData = IMURead(XGyroAddress, 0, IMUSelect) - XCalibrationData; //Collect X Gyro
 			SDCard_Write(XGyroData, NoTimestamp); //Write it to the SD Card
 			
-			YGyroData = IMURead(YGyroAddress, 0, IMUSelect); //Collect Y Gyro
-			YGyroData = TwosCompliment(YGyroData); //Two's compliment
+			YGyroData = IMURead(YGyroAddress, 0, IMUSelect) - YCalibrationData; //Collect Y Gyro
 			SDCard_Write(YGyroData, NoTimestamp); //Write it to the SD Card
 			
-			ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect); //Collect Z Gyro
-			ZGyroData = TwosCompliment(ZGyroData); //Two's compliment
+			ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
 			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
 
 			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
@@ -174,34 +211,102 @@ void CollectData() {
 } //End collect Data
 
 void ReactionWheelOn() {
-	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
-	GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
+	double ZGyro_RawData, ZGyro_RPM = 0, Error, Integral = 0, Control_Speed;
+	double kp = 120; //For algorithim
+	double ki = -0.2; //For algorithim
+	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
+	TurnMotorOn(); //Enable the motor
+	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
 
-	//DEBUG
-	delay(1000);  // wait for a second
-	//DEBUG
+		ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Accel
+		ZGyro_RawData = (ZGyroData * GyroLSB) / 6; //The divide by 6 does the conversion from deg/sec to rev/minute (deg/sec * 60/360 = rev/min)
+		ZGyro_RPM = EMA(ZGyro_RawData, ZGyro_RPM); //Calculate the running average of the data.  This will be used to run the reaction wheel
+		if ((ZGyro_RPM < 0.05) && (ZGyro_RPM > -0.05)) {
+			ZGyro_RPM = 0; //This is a filter on the data so it doesn't spin when there is nothing going on.  It filters it for +/-0.05rev/min
+		}
 
-	while (digitalRead(PIN_A3)) {//Stay in this loop until Reaction Wheel is turned off
-		//Run Reaction Wheel Algorithim
-	}
-}
+		//SDCard_WriteDouble(ZGyro_RPM); //DEBUG
 
-int TwosCompliment(int Argument) {//This does the two's compliment conversion of a 16 bit number
-	int Solution;
-	if (0x8000 & Argument) { //Is it a negative number?
-		Solution = Argument ^ 0xFFFF; //Flip all the bits
-		Solution++; //Add one
-		Solution = Solution * -1; //Make it negative
-	}
-	else { //It it not
-		Solution = Argument;
-	}
-	return Solution;
-}
+		Error = -ZGyro_RPM; //The '-' is for orientation
+		Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
+		Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
+		//SDCard_WriteDouble(Control_Speed); //DEBUG
+		//SDCard_NewLine(); //DEBUG
+		if (Control_Speed > 0.2) {
+			Motor_Direction(CCW); //Turn it on CCW
+			MotorSpeed(Control_Speed); //Turn it on at the desired speed
+		}
+		else if (Control_Speed < -0.2) { 
+			Motor_Direction(CW); //Turn it on CW
+			MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
+		}
+		else {
+			NoMotorSpeed(); //Speed is = 0
+		}
+	}//End While
+
+	TurnMotorOff(); //Disable the motor
+
+} //End ReactionWheelOn
 
 void Heartbeat() {
 	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
 	GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
+}
+
+short XCalibration() {
+	int CalData;
+	CalData = IMURead(XGyroAddress, 0, IMUSelect);
+	CalData = 0; //The first piece of data on startup is ofter corrupted
+	for (int counter = 0; counter < 5; counter++) {
+		CalData += IMURead(XGyroAddress, 0, IMUSelect); //Running Sum
+	}
+	return CalData / 5; //Take the average
+}
+
+short YCalibration() {
+	int CalData;
+	CalData = IMURead(YGyroAddress, 0, IMUSelect);
+	CalData = 0; //The first piece of data on startup is ofter corrupted
+	for (int counter = 0; counter < 5; counter++) {
+		CalData += IMURead(YGyroAddress, 0, IMUSelect); //Running Sum
+	}
+	return CalData / 5; //Take the average
+}
+
+short ZCalibration() {
+	int CalData;
+	CalData = IMURead(ZGyroAddress, 0, IMUSelect);
+	CalData = 0; //The first piece of data on startup is ofter corrupted
+	for (int counter = 0; counter < 5; counter++) {
+		CalData += IMURead(ZGyroAddress, 0, IMUSelect); //Running Sum
+	}
+	return CalData = CalData / 5; //Take the average
+}
+
+void CalibrationDataWrite(short Data, int Address) { //This is used to write the calibration data to the flash memory
+	byte TempData; //The Data needs to be written in bytes
+	//Serial.print("Data ");
+	//Serial.println(Data); 
+	TempData = Data; //Get the first byte
+	//Serial.print("Byte ");
+	//Serial.println(TempData);
+	EEPROM.write(Address, TempData); //Write the first byte
+	Data = ((Data & 0x00FF) << 8) | ((Data & 0xFF00) >> 8); //This is a byte swap
+	TempData = Data; //Get the second byte
+	Address++; //Increment the address
+	EEPROM.write(Address, TempData); //Write the second byte
+}
+
+short CalibrationDataRead(int Address) {
+	short Data, TempData;
+		Address++; //MSB First
+		Data = EEPROM.read(Address); //Read it 
+		Data = Data << 8; //Bit shift
+		Address--; //LSB Address
+		TempData = EEPROM.read(Address); //Read it
+		Data = (Data & 0xFF00) | (TempData & 0x00FF); //Combine them
+		return Data;
 }
 
  void ftm0_isr() { //1 Second Timer

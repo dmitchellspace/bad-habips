@@ -18,3 +18,4 @@ void SDCard_NewLine();
 void SDCard_SensorFailure(byte ErrorCode);
 void NewSDFile();
 extern int SDCardPresent; //Is the SD Card Present?
+void SDCard_WriteDouble(double SDCardData);

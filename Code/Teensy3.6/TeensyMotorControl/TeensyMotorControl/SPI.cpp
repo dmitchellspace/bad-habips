@@ -6,10 +6,9 @@
 
 const int IMU_ST_Result = 0x68; //This is what the ST data should return.
 const byte IMU_ST_Address = 0xF, EnableGyroAddress = 0x1E, TurnOnGyroAddress = 0x10, EnableAccelAddress = 0x1F, TurnOnAccelAddress = 0x20, EnableGyroData = 0x38;
-const byte TurnOnGyroData = 0xD8, EnableAccelData = 0x38, TurnOnAccelData = 0xD0, IMU0 = 0, IMU1 = 1;
+const byte TurnOnGyroData = 0xD8, EnableAccelData = 0x38, TurnOnAccelData = 0xD0, IMU0 = 0, IMU1 = 1, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D;
 int IMU_ST_Data;
 byte SPI0RxData, SPI0CompleteFlag = 0, DataNotValidSPI0, IMUSelect; //This is all used for SPI0
-
 
 void Init_SPI() {//Initiliaze SPI interface
 	Init_DAQCS_SPI(); //Set up SPI to act as slave with main MSP430
@@ -112,7 +111,8 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 	//Some of the data requires data from two registers while some data needs only one register.  The SingleReg input is a binary value saying if a second read is 
 	//neccessary.  A 1 in this value means only one read is neccessary.
 	byte TxData; //This might need to leave the function and become overarching. 
-	int SPI0Data = 0, Timeout = 0; //Initialize to 0
+	int Timeout = 0; //Initialize to 0
+	short SPI0Data = 0;
 	DataNotValidSPI0 = 0; // Data not Valid defaults to data valid
 	for (byte counter = 1; counter < 3; counter++) { //Need to do two words to read from the IMU.  See IMU Data sheet for detail
 		TxData = (TxAddress & 0xF0) >> 4 | (TxAddress & 0x0F) << 4; //This reverses the order of the address
@@ -153,7 +153,7 @@ int IMURead(byte TxAddress, byte SingleReg, byte IMUNumber) {
 				SPI0Data = ((SPI0Data & 0x00FF) << 8) | ((SPI0Data & 0xFF00) >> 8); //This is a byte swap
 			}
 			else { //Second set of data
-				SPI0Data = ((SPI0Data & 0xFF00) | SPI0RxData); //Keep the upper most byte and put in the second byte
+				SPI0Data = ((SPI0Data & 0xFF00) | (SPI0RxData&0x00FF)); //Keep the upper most byte and put in the second byte
 			}
 		}
 	}//End for loop
