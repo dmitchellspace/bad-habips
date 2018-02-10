@@ -74,6 +74,18 @@ Version 9:
 	The motor is working about 90% of the way.  The last issue is that the integral won't totally settle to 0 after it is spun fast in one direction and then not at all 
 	in the other direction.  This should fix itself once it is connected to the actual motor.  This is because it will spin it slightly in one direction and that will 
 	drive the integral to zero.  This will be tested once we can mount everything together.
+	Version 10:
+	Uploaded on 02/10/2018
+	In order to make the motor controller algorithim run as efficiently as possible, the manner in which SD card writes is done is going to be chagned (only for while
+	the motor is on).  The opening and closing of the file structure is what takes the longest amount of time, and therefor this will only be done when neccessary.  The
+	reason that closing it takes a while is because it clears the buffer on a close.  The buffer is 512 characters long and so it is not neccessary to do this every time.
+	As a result the file will be opened once upon entering the loop, closed once upon leaving the loop, and the buffer will be cleared after all six of the IMU writes,
+	instead of after every individual write.  This should make each write take about 200us instead of about 3ms.
+	Added SD Card Writes while the motor is on.
+	Added code so that it now stores two sets of IMU calibration data in memory.  The first 3 pieces are IMU0 and the second three are IMU1.
+	Changed the functions in I2C because now we're using a different sensor that has both the temperature and pressure in one sensor.
+	I2C is going to be completely rewritten not using the Arduino libraries.  Those libraries have too many restrictions, and therefor can not be utilizied for what we need.
+	This will be part of the next version.
 	*/
 
 //Start Variable Declaration
@@ -85,15 +97,16 @@ byte PressTempFlag = 0; //The pressure and temperature only needs to be collecte
 const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
 int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 short XCalibrationData, YCalibrationData, ZCalibrationData;
-int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibrationMemoryLocation = 4; //Each takes two bytes of memory
+int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibrationMemoryLocation = 4; //Each takes two bytes of memory, these locations plus six will be for IMU1
+
 
 //This is for the SD Card writes
 const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
 
 //Variables for motor
 const byte CCW = 0, CW = 1;
-//End Variable Declaration
 
+//End Variable Declaration
 
 #include "Clocks.h"
 #include "GPIO.h"
@@ -123,19 +136,43 @@ void setup() { //Only runs once upon powering up the board
 
 	if (!digitalRead(PIN_A4)) { //This checks the IMU calibration button.  THE BUTTON NEEDS TO BE HELD ON STARTUP IN ORDER FOR THE CALIBRATION TO TAKE PLACE
 		XCalibrationData = XCalibration(); //Perform a cal
-		CalibrationDataWrite(XCalibrationData, XCalibrationMemoryLocation); //Write the data to flash
 		YCalibrationData = YCalibration(); //Perform a cal
-		CalibrationDataWrite(YCalibrationData, YCalibrationMemoryLocation); //Write the data to flash
+		
 		ZCalibrationData = ZCalibration(); //Perform a cal
-		CalibrationDataWrite(ZCalibrationData, ZCalibrationMemoryLocation); //Write the data to flash
-		Serial.println("IMU Calibration Performed");
+		
+		if (IMUSelect == IMU0) { //Write to the first block of memory
+			CalibrationDataWrite(XCalibrationData, XCalibrationMemoryLocation); //Write the data to flash
+			CalibrationDataWrite(YCalibrationData, YCalibrationMemoryLocation); //Write the data to flash
+			CalibrationDataWrite(ZCalibrationData, ZCalibrationMemoryLocation); //Write the data to flash
+			Serial.println("IMU0 Calibration Performed");
+		}
+		else {
+			CalibrationDataWrite(XCalibrationData, XCalibrationMemoryLocation+6); //Write the data to flash
+			CalibrationDataWrite(YCalibrationData, YCalibrationMemoryLocation+6); //Write the data to flash
+			CalibrationDataWrite(ZCalibrationData, ZCalibrationMemoryLocation+6); //Write the data to flash
+			Serial.println("IMU1 Calibration Performed");
+		}
+		Serial.print("XCal = ");
+		Serial.println(XCalibrationData);
+		Serial.print("YCal = ");
+		Serial.println(YCalibrationData);
+		Serial.print("ZCal = ");
+		Serial.println(ZCalibrationData);
 	}
 
 	else {
-		XCalibrationData = CalibrationDataRead(XCalibrationMemoryLocation); // Get X from flash
-		YCalibrationData = CalibrationDataRead(YCalibrationMemoryLocation); //Get Y from flash
-		ZCalibrationData = CalibrationDataRead(ZCalibrationMemoryLocation); //Get Z from flash
-		Serial.println("No Calibration Performed.  Values Taken from Memory");
+		if (IMUSelect == IMU0) {
+			XCalibrationData = CalibrationDataRead(XCalibrationMemoryLocation); // Get X from flash
+			YCalibrationData = CalibrationDataRead(YCalibrationMemoryLocation); //Get Y from flash
+			ZCalibrationData = CalibrationDataRead(ZCalibrationMemoryLocation); //Get Z from flash
+			Serial.println("No Calibration Performed.  IMU0 taken from Memory");
+		}
+		else {
+			XCalibrationData = CalibrationDataRead(XCalibrationMemoryLocation+6); // Get X from flash
+			YCalibrationData = CalibrationDataRead(YCalibrationMemoryLocation+6); //Get Y from flash
+			ZCalibrationData = CalibrationDataRead(ZCalibrationMemoryLocation+6); //Get Z from flash
+			Serial.println("No Calibration Performed.  IMU1 taken from Memory");
+		}
 	}
 
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
@@ -155,6 +192,7 @@ void loop() {//Main Loop
 }
 
 void CollectData() {
+
 	/*
 	None of the LSB conversions will be done on board.  This is an unnecessary use of resources when these calculations can be done on the ground.
 	The only LSB conversion that will be done, is the Z-Gyro and that will only be done when the motor is turned on, because that is necessary for the motor
@@ -193,12 +231,9 @@ void CollectData() {
 				PressTempFlag = 0; //Reset Flag
 				Heartbeat(); //1 second heartbeat
 				//TODO SD Card Writes
-				SDCard_NewLine(); //New Line
 			} //End Pressure Temperature if
-			else {
 				SDCard_NewLine();
-			}
-			
+
 			if (DataNotValidSPI0 == 1) { //If SPI0 Timeout Occured
 				Init_IMU_SPI(); //Reset SPI0
 				IMUSelfTest(); //Test Them
@@ -211,41 +246,79 @@ void CollectData() {
 } //End collect Data
 
 void ReactionWheelOn() {
+	/*
+	In order to make the motor controller algorithim run as efficiently as possible, the manner in which SD card writes is done is going to be chagned (only for while
+	the motor is on).  The opening and closing of the file structure is what takes the longest amount of time, and therefor this will only be done when neccessary.  The
+	reason that closing it takes a while is because it clears the buffer on a close.  The buffer is 512 characters long and so it is not neccessary to do this every time.
+	As a result the file will be opened once upon entering the loop, closed once upon leaving the loop, and the buffer will be cleared after all six of the IMU writes,
+	instead of after every individual write.  This should make each write take about 200us instead of about 3ms.
+	*/
 	double ZGyro_RawData, ZGyro_RPM = 0, Error, Integral = 0, Control_Speed;
 	double kp = 120; //For algorithim
 	double ki = -0.2; //For algorithim
 	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
+
+	SDCardOpenFile(); //Open the file for the duration of the motor being turned on
 	TurnMotorOn(); //Enable the motor
+
 	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
 
-		ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Accel
+		XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
+		SDCard_WriteMotorOn(XAccelData, Timestamp); //Write it to the SD Card
+
+		YAccelData = IMURead(YAccelAddress, 0, IMUSelect); //Collect Y Accel
+		SDCard_WriteMotorOn(YAccelData, NoTimestamp); //Write it to the SD Card
+
+		ZAccelData = IMURead(ZAccelAddress, 0, IMUSelect); //Collect Z Accel
+		SDCard_WriteMotorOn(ZAccelData, NoTimestamp); //Write it to the SD Card
+
+		XGyroData = IMURead(XGyroAddress, 0, IMUSelect) - XCalibrationData; //Collect X Gyro
+		SDCard_WriteMotorOn(XGyroData, NoTimestamp); //Write it to the SD Card
+
+		YGyroData = IMURead(YGyroAddress, 0, IMUSelect) - YCalibrationData; //Collect Y Gyro
+		SDCard_WriteMotorOn(YGyroData, NoTimestamp); //Write it to the SD Card
+
+		ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
+		SDCard_WriteMotorOn(ZGyroData, NoTimestamp); //Write it to the SD Card
+
+		if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
+			PressTempFlag = 0; //Reset Flag
+			Heartbeat(); //1 second heartbeat
+						 //TODO SD Card Writes
+		} //End Pressure Temperature if
+
+		SDCard_NewLineMotorOn(); //Enter a new line
+		SDCard_FlushBuffer(); //Flush the buffer
+
 		ZGyro_RawData = (ZGyroData * GyroLSB) / 6; //The divide by 6 does the conversion from deg/sec to rev/minute (deg/sec * 60/360 = rev/min)
 		ZGyro_RPM = EMA(ZGyro_RawData, ZGyro_RPM); //Calculate the running average of the data.  This will be used to run the reaction wheel
+
 		if ((ZGyro_RPM < 0.05) && (ZGyro_RPM > -0.05)) {
 			ZGyro_RPM = 0; //This is a filter on the data so it doesn't spin when there is nothing going on.  It filters it for +/-0.05rev/min
 		}
 
-		//SDCard_WriteDouble(ZGyro_RPM); //DEBUG
-
 		Error = -ZGyro_RPM; //The '-' is for orientation
 		Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
 		Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
-		//SDCard_WriteDouble(Control_Speed); //DEBUG
-		//SDCard_NewLine(); //DEBUG
+
 		if (Control_Speed > 0.2) {
 			Motor_Direction(CCW); //Turn it on CCW
 			MotorSpeed(Control_Speed); //Turn it on at the desired speed
 		}
+
 		else if (Control_Speed < -0.2) { 
 			Motor_Direction(CW); //Turn it on CW
 			MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
 		}
+
 		else {
 			NoMotorSpeed(); //Speed is = 0
 		}
+
 	}//End While
 
 	TurnMotorOff(); //Disable the motor
+	SDCardCloseFile(); //Close the SD Card File
 
 } //End ReactionWheelOn
 
@@ -286,11 +359,7 @@ short ZCalibration() {
 
 void CalibrationDataWrite(short Data, int Address) { //This is used to write the calibration data to the flash memory
 	byte TempData; //The Data needs to be written in bytes
-	//Serial.print("Data ");
-	//Serial.println(Data); 
 	TempData = Data; //Get the first byte
-	//Serial.print("Byte ");
-	//Serial.println(TempData);
 	EEPROM.write(Address, TempData); //Write the first byte
 	Data = ((Data & 0x00FF) << 8) | ((Data & 0xFF00) >> 8); //This is a byte swap
 	TempData = Data; //Get the second byte

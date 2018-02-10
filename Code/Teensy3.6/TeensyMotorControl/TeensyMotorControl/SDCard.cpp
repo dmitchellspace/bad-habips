@@ -85,3 +85,44 @@ void SDCard_WriteDouble(double SDCardData) {
 	SDFile.print(","); //Add a tab
 	SDFile.close(); //Close SD File
 }
+
+/*
+In order to make the motor controller algorithim run as efficiently as possible, the manner in which SD card writes is done is going to be chagned (only for while
+the motor is on).  The opening and closing of the file structure is what takes the longest amount of time, and therefor this will only be done when neccessary.  The
+reason that closing it takes a while is because it clears the buffer on a close.  The buffer is 512 characters long and so it is not neccessary to do this every time.
+As a result the file will be opened once upon entering the loop, closed once upon leaving the loop, and the buffer will be cleared after all six of the IMU writes,
+instead of after every individual write.  This should make each write take about 200us instead of about 3ms.
+All of the following functions are used for that purpose:
+*/
+
+void SDCardOpenFile() {
+	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile.println("Motor Turned On");
+}
+
+void SDCardCloseFile() {
+	SDFile.println("Motor Turned Off");
+	SDFile.close(); //Close SD File
+}
+
+void SDCard_WriteMotorOn(int SDCardData, byte Timestamp) {
+	if (Timestamp == 1) {
+		GetClock(); //Get Current RTC
+		SDFile.print(RTCCurrentData[2]); //Hours
+		SDFile.print(':');
+		SDFile.print(RTCCurrentData[1]); //Minutes
+		SDFile.print(":");
+		SDFile.print(RTCCurrentData[0]); //Seconds
+		SDFile.print(",");
+	}
+	SDFile.print(SDCardData); //Record the data
+	SDFile.print(","); //Add a comma
+}
+
+void SDCard_NewLineMotorOn() {
+	SDFile.println();
+}
+
+void SDCard_FlushBuffer(){
+	SDFile.flush();
+}
