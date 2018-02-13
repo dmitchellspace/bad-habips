@@ -966,8 +966,8 @@ Wire Wire Line
 	10750 5950 10750 5900
 Text GLabel 10700 5800 2    39   Input ~ 0
 +5V
-Text Notes 8400 5950 0    197  ~ 39
-Switch PWR
+Text Notes 8400 6150 0    197  ~ 39
+Network\nSwitch PWR
 Wire Notes Line
 	8200 5200 8200 6550
 $EndSCHEMATC

@@ -3,7 +3,7 @@
   (general
     (links 645)
     (no_connects 2)
-    (area 19.924999 19.924999 122.075001 128.075001)
+    (area 19.924999 18.615 124.358096 138.625001)
     (thickness 1.6)
     (drawings 22)
     (tracks 1983)
@@ -531,7 +531,7 @@
     (add_net SW_IN)
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E45C) (tstamp 5A7A35D9)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E45C) (tstamp 5A7A35D9)
     (at 85.228 111.32)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -1868,7 +1868,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A320D)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A320D)
     (at 109.93 71.674)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -2072,7 +2072,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A31C9)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A31C9)
     (at 22.31 98.614)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -2192,7 +2192,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A31A1)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A31A1)
     (at 32.35 99.834)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -2300,7 +2300,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A317D)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A317D)
     (at 40.4 86.114)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -2444,7 +2444,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A314D)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A314D)
     (at 47.5 35.624)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -2492,7 +2492,7 @@
       (net 2 GND) (zone_connect 2))
   )
 
-  (module Dans_Parts:Via-0.6mm (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A313D)
+  (module Dans_Parts:Via-0.6mm locked (layer F.Cu) (tedit 5A78E3FB) (tstamp 5A7A313D)
     (at 59.96 102.204)
     (fp_text reference REF** (at 0.09 -0.46) (layer F.SilkS) hide
       (effects (font (size 0.127 0.127) (thickness 0.0001)))
@@ -8260,7 +8260,7 @@
       (net 2 GND))
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D925)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D925)
     (at 57.85 114.264)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8283,7 +8283,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D92A)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D92A)
     (at 26.18 110.654)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8306,7 +8306,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DEB5) (tstamp 5A81D92F)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DEB5) (tstamp 5A81D92F)
     (at 83.77 116.144)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8329,7 +8329,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DE0F) (tstamp 5A81D934)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DE0F) (tstamp 5A81D934)
     (at 28.88 36.274)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8352,7 +8352,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DE79) (tstamp 5A81D939)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DE79) (tstamp 5A81D939)
     (at 62.48 85.444)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8375,7 +8375,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D93E)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D93E)
     (at 57.95 110.804)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8398,7 +8398,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D943)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D943)
     (at 29.86 110.534)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8421,7 +8421,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D4B1) (tstamp 5A81D948)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D4B1) (tstamp 5A81D948)
     (at 93.12 109.464)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8444,7 +8444,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DE26) (tstamp 5A81D94D)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DE26) (tstamp 5A81D94D)
     (at 36.76 45.554)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8467,7 +8467,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D952)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D952)
     (at 42.85 94.674)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8490,7 +8490,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D957)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D957)
     (at 57.14 103.654)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8513,7 +8513,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D585) (tstamp 5A81D95C)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D585) (tstamp 5A81D95C)
     (at 46.13 107.034)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8536,7 +8536,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81E11B) (tstamp 5A81D961)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81E11B) (tstamp 5A81D961)
     (at 68.9 121.864)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8559,7 +8559,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81E1DB) (tstamp 5A81D966)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81E1DB) (tstamp 5A81D966)
     (at 106.5 48.654)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8582,7 +8582,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D4CD) (tstamp 5A81D96B)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D4CD) (tstamp 5A81D96B)
     (at 81.58 71.524)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8605,7 +8605,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81E1CA) (tstamp 5A81D970)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81E1CA) (tstamp 5A81D970)
     (at 36.01 101.874)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8628,7 +8628,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D975)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D975)
     (at 52.42 103.604)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8651,7 +8651,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DDEC) (tstamp 5A81D97A)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DDEC) (tstamp 5A81D97A)
     (at 50.32 107.014)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8674,7 +8674,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DDEB) (tstamp 5A81D97F)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DDEB) (tstamp 5A81D97F)
     (at 54.64 107.104)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8697,7 +8697,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81E28E) (tstamp 5A81D984)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81E28E) (tstamp 5A81D984)
     (at 107.07 59.264)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8720,7 +8720,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D63A) (tstamp 5A81D989)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D63A) (tstamp 5A81D989)
     (at 49.1 37.654)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8743,7 +8743,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D5C5) (tstamp 5A81D98E)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D5C5) (tstamp 5A81D98E)
     (at 41.04 104.274)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8766,7 +8766,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D6F9) (tstamp 5A81D993)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D6F9) (tstamp 5A81D993)
     (at 45.1 118.314)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8789,7 +8789,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DFCE) (tstamp 5A81D998)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DFCE) (tstamp 5A81D998)
     (at 86.01 114.444)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8812,7 +8812,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D60B) (tstamp 5A81D99D)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D60B) (tstamp 5A81D99D)
     (at 105.69 71.934)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8835,7 +8835,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81DE53) (tstamp 5A81D9A2)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81DE53) (tstamp 5A81D9A2)
     (at 66.07 56.954)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8858,7 +8858,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D5C2) (tstamp 5A81D9A7)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D5C2) (tstamp 5A81D9A7)
     (at 39.26 105.944)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8881,7 +8881,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D67C) (tstamp 5A81D9AC)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D67C) (tstamp 5A81D9AC)
     (at 27.21 94.544)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8904,7 +8904,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D6CB) (tstamp 5A81D9B1)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D6CB) (tstamp 5A81D9B1)
     (at 45.11 123.504)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8927,7 +8927,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D9B6)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D9B6)
     (at 59.44 107.254)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8950,7 +8950,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81D60D) (tstamp 5A81D9BB)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81D60D) (tstamp 5A81D9BB)
     (at 105.72 74.064)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8973,7 +8973,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 58613369) (tstamp 5A81D9C0)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 58613369) (tstamp 5A81D9C0)
     (at 60.85 83.664)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
@@ -8996,7 +8996,7 @@
     )
   )
 
-  (module Connect:PINTST (layer F.Cu) (tedit 5A81E09B) (tstamp 5A81D9C5)
+  (module Connect:PINTST locked (layer F.Cu) (tedit 5A81E09B) (tstamp 5A81D9C5)
     (at 116.85 42.814)
     (descr "module 1 pin (ou trou mecanique de percage)")
     (tags DEV)
