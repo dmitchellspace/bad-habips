@@ -74,7 +74,7 @@ Version 9:
 	The motor is working about 90% of the way.  The last issue is that the integral won't totally settle to 0 after it is spun fast in one direction and then not at all 
 	in the other direction.  This should fix itself once it is connected to the actual motor.  This is because it will spin it slightly in one direction and that will 
 	drive the integral to zero.  This will be tested once we can mount everything together.
-	Version 10:
+Version 10:
 	Uploaded on 02/10/2018
 	In order to make the motor controller algorithim run as efficiently as possible, the manner in which SD card writes is done is going to be chagned (only for while
 	the motor is on).  The opening and closing of the file structure is what takes the longest amount of time, and therefor this will only be done when neccessary.  The
@@ -86,6 +86,16 @@ Version 9:
 	Changed the functions in I2C because now we're using a different sensor that has both the temperature and pressure in one sensor.
 	I2C is going to be completely rewritten not using the Arduino libraries.  Those libraries have too many restrictions, and therefor can not be utilizied for what we need.
 	This will be part of the next version.
+Version 11:
+	Uploaded on 02/15/2018
+	Added initialization for I2C
+	Added Write Function for I2C
+	Added Read Function for I2C
+	The come up for the sensor is the following process:
+	1) Initialize pins
+	2) Read ID register, and mark sensor as pass/fail
+	3) If pass write to config registers
+	This functionality has been tested and confirmed.
 	*/
 
 //Start Variable Declaration
@@ -129,8 +139,8 @@ void setup() { //Only runs once upon powering up the board
 	Init_GPIO(); //Do initilization on GPIO Pins
 	Init_RTC(); //Initiliaze Real Time Clock
 	SDCard_Setup();//Do initial setup for SD Card
-	Init_SPI();//Init\iliaze SPI interface
 	Init_I2C();//Initiliaze I2C interface
+	Init_SPI();//Init\iliaze SPI interface
 	Init_MotorInterface(); //Initliaze Motor Interface
 	Init1SecTimer(); //Init Timer to trigger an interrupt every 1 second
 
