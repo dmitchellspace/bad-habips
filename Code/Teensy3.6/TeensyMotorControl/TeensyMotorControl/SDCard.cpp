@@ -11,6 +11,7 @@ const int chipSelect = BUILTIN_SDCARD;
 File SDFile;
 int SDCardPresent; //Is the SD Card Present?
 const char* SDFileName = "HAPIB.csv";
+bool MotorOn = 0;
 
 void SDCard_Setup() { //Initiliaze SD Card
 	if (!SD.begin(chipSelect)) { //Check if SD Card Is present
@@ -69,7 +70,7 @@ void NewSDFile() {
 		SDFile.println(RTCCurrentData[5]); //Add year
 		Serial.println("SD Card initialized, HAPIB.txt created"); //Success
 		SDCardPresent = 1; //SD Card Passed
-		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro	...	ADD REST OF SENSORS"); //Make sure to add rest of sensors
+		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure"); //TODO Make sure to add rest of sensors
 	}
 	else {
 		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed
@@ -77,13 +78,6 @@ void NewSDFile() {
 	}
 
 SDFile.close(); //Close SD File
-}
-
-void SDCard_WriteDouble(double SDCardData) {
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
-	SDFile.print(SDCardData); //Record the data
-	SDFile.print(","); //Add a tab
-	SDFile.close(); //Close SD File
 }
 
 /*
@@ -97,13 +91,20 @@ All of the following functions are used for that purpose:
 
 void SDCardOpenFile() {
 	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
-	SDFile.println("Motor Turned On");
+	if (digitalRead(PIN_A6)) {
+		SDFile.println("Motor Turned On");
+		MotorOn = 1;
+	}
 }
 
 void SDCardCloseFile() {
-	SDFile.println("Motor Turned Off");
+	if (MotorOn == 1) {
+		SDFile.println("Motor Turned Off");
+		MotorOn = 0;
+	}
 	SDFile.close(); //Close SD File
 }
+
 
 void SDCard_WriteMotorOn(int SDCardData, byte Timestamp) {
 	if (Timestamp == 1) {
@@ -125,4 +126,56 @@ void SDCard_NewLineMotorOn() {
 
 void SDCard_FlushBuffer(){
 	SDFile.flush();
+}
+
+void SDCard_CalibrationDataWrite(unsigned short Cal1, signed short Cal2, signed short Cal3, signed short Cal4, signed short Cal5, signed short Cal6, signed short Cal7, signed short Cal8, signed short Cal9, bool Temp) {
+	// If the calibration data being written is temperature, the "Temp" bit shall be set to 1, and only the first 3 Cal Data will be 
+	// used.  If the Temp bit is not set, all 9 will be used.
+
+	SDFile = SD.open(SDFileName, FILE_WRITE); //Creates a new file
+
+	if (Temp) { //Temperature Data
+		SDFile.print(",");
+		SDFile.print("T1 = ,");
+		SDFile.print(Cal1); 
+		SDFile.print(",");
+		SDFile.print("T2 = ,");
+		SDFile.print(Cal2);
+		SDFile.print(",");
+		SDFile.print("T3 = ,");
+		SDFile.print(Cal3);
+		SDFile.print(",");
+	}
+	else { //Pressure Data
+		SDFile.print(",");
+		SDFile.print("P1 = ,");
+		SDFile.print(Cal1);
+		SDFile.print(",");
+		SDFile.print("P2 = ,");
+		SDFile.print(Cal2);
+		SDFile.print(",");
+		SDFile.print("P3 = ,");
+		SDFile.print(Cal3);
+		SDFile.print(",");
+		SDFile.print("P4 = ,");
+		SDFile.print(Cal4);
+		SDFile.print(",");
+		SDFile.print("P5 = ,");
+		SDFile.print(Cal5);
+		SDFile.print(",");
+		SDFile.print("P6 = ,");
+		SDFile.print(Cal6);
+		SDFile.print(",");
+		SDFile.print("P7 = ,");
+		SDFile.print(Cal7);
+		SDFile.print(",");
+		SDFile.print("P8 = ,");
+		SDFile.print(Cal8);
+		SDFile.print(",");
+		SDFile.print("P9 = ,");
+		SDFile.print(Cal9);
+		SDFile.print(",");
+	}
+	SDFile.println();
+	SDFile.close(); //Close SD File
 }

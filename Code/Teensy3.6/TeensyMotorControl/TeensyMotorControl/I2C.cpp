@@ -3,6 +3,7 @@
 // 
 
 #include "I2C.h"
+#include "SDCard.h"
 
 // Temp Pressure Sensor Data
 
@@ -20,10 +21,14 @@ going to be done via register writes in order to make it run as quickly as possi
 
 const byte TempPressureAddress = 0x77, TempPressureStartRegister = 0xF7, TempPressureNumRegisters = 6;
 const byte TempPressureSelfTestRegister = 0xD0, TempPressureSelfTestData = 0x60, TemperatureEnableRegister = 0xF4;
-const byte TemperatureSettingsRegister = 0xF5, TemperatureEnableData = 0x27, TemperatureSettingsData = 0x80;
+const byte TemperatureSettingsRegister = 0xF5, TemperatureEnableData = 0xB7, TemperatureSettingsData = 0x80, TempCalRegister = 0x88;
+const byte PressCalReg1 = 0x8E, PressCalReg2 = 0x94, PressCalReg3 = 0x9A;
 const int BitBangDelay = 4; //122kHz signal
 byte I2CRxData[6];
-
+unsigned short TCal1;
+signed short TCal2, TCal3;
+unsigned short PCal1;
+signed short PCal2, PCal3, PCal4, PCal5, PCal6, PCal7, PCal8, PCal9;
 
 void Init_I2C() { //Initialize 
 	PORTA_PCR12 = 0x100; //Pin 3 (A12) is the SCL line
@@ -32,11 +37,50 @@ void Init_I2C() { //Initialize
 	GPIOA_PSOR |= 0x3000; //Set up the outputs as high
 	Serial.println("I2C Successfully Initalized");
 	TempPressureRead(1, TempPressureAddress, TempPressureSelfTestRegister);
+
 	if(I2CRxData[5] == TempPressureSelfTestData){
+
 		Serial.println("Temperature/Pressure Sensor Successfully Initialize");
+
 		TempPressureWrite(TempPressureAddress, TemperatureEnableRegister, TemperatureEnableData); //Enable the Sensor
 		TempPressureWrite(TempPressureAddress, TemperatureSettingsRegister, TemperatureSettingsData); //Setting to sample every 0.5s
+		TempPressureRead(6, TempPressureAddress, TempCalRegister); //Get Temparature Cal Data
+
+		TCal1 = I2CRxData[4]; //Parse the data
+		TCal1 = ((TCal1 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
+		TCal2 = I2CRxData[2]; //Parse the data
+		TCal2 = ((TCal2 << 8) & 0xFF00) | I2CRxData[3]; //Parse the data
+		TCal3 = I2CRxData[0]; //Parse the data
+		TCal3 = ((TCal3 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
+
+		TempPressureRead(6, TempPressureAddress, PressCalReg1); //First group of Pressure Measurements
+		PCal1 = I2CRxData[4]; //Parse the data
+		PCal1 = ((PCal1 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
+		PCal2 = I2CRxData[2]; //Parse the data
+		PCal2 = ((PCal2 << 8) & 0xFF00) | I2CRxData[3]; //Parse the data
+		PCal3 = I2CRxData[0]; //Parse the data
+		PCal3 = ((PCal3 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
+
+		TempPressureRead(6, TempPressureAddress, PressCalReg2); //Second group of data
+		PCal4 = I2CRxData[4]; //Parse the data
+		PCal4 = ((PCal4 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
+		PCal5 = I2CRxData[2]; //Parse the data
+		PCal5 = ((PCal5 << 8) & 0xFF00) | I2CRxData[3]; //Parse the data
+		PCal6 = I2CRxData[0]; //Parse the data
+		PCal6 = ((PCal6 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
+
+		TempPressureRead(6, TempPressureAddress, PressCalReg3); //Third group of data
+		PCal7 = I2CRxData[4]; //Parse the data
+		PCal7 = ((PCal7 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
+		PCal8 = I2CRxData[2]; //Parse the data
+		PCal8 = ((PCal8 << 8) & 0xFF00) | I2CRxData[3]; //Parse the data
+		PCal9 = I2CRxData[0]; //Parse the data
+		PCal9 = ((PCal9 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
+
+		SDCard_CalibrationDataWrite(TCal1, TCal2, TCal3, 0, 0, 0, 0, 0, 0, 1); //Writes the Temp Cal Data to the SD Card
+		SDCard_CalibrationDataWrite(PCal1, PCal2, PCal3, PCal4, PCal5, PCal6, PCal7, PCal8, PCal9, 0); //Writes the Pressure Cal Data to the SD Card
 	}
+
 	else {
 		Serial.println("Temperature/Pressure Sensor Failed To Initialize");
 	}

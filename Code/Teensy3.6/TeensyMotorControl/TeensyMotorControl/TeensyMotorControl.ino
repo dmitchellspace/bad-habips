@@ -96,6 +96,15 @@ Version 11:
 	2) Read ID register, and mark sensor as pass/fail
 	3) If pass write to config registers
 	This functionality has been tested and confirmed.
+Version 12:
+	Uploaded on 02/16/2018
+	Added temp/pressure read every second
+	Added temperature calibration data read on startup
+	Added pressure calibration read on startup
+	The writes to the SD card were added.
+	The writes for temperature and pressure sensors take a really long time due to their size.  As a result the motor on method is used in order to keep it in a
+	reasonable time window. The card is opened once, both values are written, and then the SD card is closed.
+	Read/Write are also added for when motor is on.
 	*/
 
 //Start Variable Declaration
@@ -109,6 +118,8 @@ int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 short XCalibrationData, YCalibrationData, ZCalibrationData;
 int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibrationMemoryLocation = 4; //Each takes two bytes of memory, these locations plus six will be for IMU1
 
+//This is used for Temperature and Pressure
+int PressureData, TemperatureData;
 
 //This is for the SD Card writes
 const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
@@ -207,6 +218,8 @@ void CollectData() {
 	None of the LSB conversions will be done on board.  This is an unnecessary use of resources when these calculations can be done on the ground.
 	The only LSB conversion that will be done, is the Z-Gyro and that will only be done when the motor is turned on, because that is necessary for the motor
 	algorithim, it will be done on board.
+	The writes for temperature and pressure sensors take a really long time due to their size.  As a result the motor on method is used in order to keep it in a 
+	reasonable time window. The card is opened once, both values are written, and then the SD card is closed.
 	*/
 	while (!digitalRead(PIN_A6)) { //Stay in this loop until Reaction Wheel is turned on
 
@@ -238,9 +251,27 @@ void CollectData() {
 			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
 
 			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
+				/*The temperature and pressure measurements are performed as six straight reads.  The first is the MSB of pressure, the
+				second is the LSB of the pressure.  The third is four addition least significant bits.  The 4th-6th registers are used 
+				the same way but for temperature.
+				*/
+				SDCardOpenFile();
 				PressTempFlag = 0; //Reset Flag
 				Heartbeat(); //1 second heartbeat
-				//TODO SD Card Writes
+
+				TempPressureRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister);
+
+				TemperatureData = I2CRxData[2];
+				TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
+				TemperatureData = ((TemperatureData << 4) & 0xFFFF0) | ((I2CRxData[0] >> 4) & 0x0F);
+				SDCard_WriteMotorOn(TemperatureData, NoTimestamp);
+
+				PressureData = I2CRxData[5];
+				PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
+				PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
+				SDCard_WriteMotorOn(PressureData, NoTimestamp);
+
+				SDCardCloseFile();
 			} //End Pressure Temperature if
 				SDCard_NewLine();
 
@@ -294,7 +325,19 @@ void ReactionWheelOn() {
 		if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
 			PressTempFlag = 0; //Reset Flag
 			Heartbeat(); //1 second heartbeat
-						 //TODO SD Card Writes
+
+			TempPressureRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister); //Read Temp/Press
+
+			TemperatureData = I2CRxData[2];
+			TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
+			TemperatureData = ((TemperatureData << 4) & 0xFFFF0) | ((I2CRxData[0] >> 4) & 0x0F);
+			SDCard_WriteMotorOn(TemperatureData, NoTimestamp); //Write to card
+
+			PressureData = I2CRxData[5];
+			PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
+			PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
+			SDCard_WriteMotorOn(PressureData, NoTimestamp); //Write to card
+
 		} //End Pressure Temperature if
 
 		SDCard_NewLineMotorOn(); //Enter a new line
