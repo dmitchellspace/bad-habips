@@ -1,0 +1,38 @@
+-------------------------------------
+Power Design Options:
+
+Estimated Draw on 3.3V Rail: <30mA
+	>MSP430- VERY LOW (uA's)
+	>HF Oscillator- 16mA
+	>IMU (x2)- (<5mA each)
+	>Pressure- (1.5mA)
+	>Temp- (<1mA)
+Estimated Draw on 5V Rail: <100mA
+	>Teensy- (<100mA)
+	>Power Sensor- (<1.6mA)
+
+Goals/ Design Requirements:
+	-Work over wide temperature range
+	-Efficient (heat cannot be easily dissipated at that altitude)
+	-Supply enough power with capability for auxiliary power to potential payloads (future)
+
+Option 1 (Previous Team's Method - I really dont feel comfortable boosting):
+-1S LiPo (~3.7V Nominal) boosted up to 5V cascaded into 3.3V
+
+Option 2 (Weird zone of kinda far for LDO but not far enough for switching regultor - backup???):
+-2S LiPo (7.4V Nominal) LDO to 5V and cascading LDO to 3.3V
+
+Option 3 (Probably my best bet)
+-3S LiPo (~11.1V Nominal) Switched to Intermediary 6.5V into LDO for 5V and LDO for 3.3V
+	>What is the difference between this method and the 2S LiPo?
+		>Difference would be effeciency. Constant 6.5V to 5V is only 1.5V drop whereas
+			with the 2S LiPo you have a varying 2.4V to 3.4V drop (variance in a system 
+			is not ideal and can potentially cause unforseen issues)
+	>What is the source of the 3.3V rail? LDO from 6.5V? or 5V?
+		>I would say cascading from the 5V rail. If the load ever becomes substantial enough
+			to warrant not cascading, there needs to be a separate switching regulator for it.
+
+Power System Behaviors:
+-On initial power, system is powered from backup battery
+-During Teensy initialization, the power is switched to the main battery (this disables the backup battery)
+-If the main battery is to fail, Teensy will shut it down and switch back to backup battery
