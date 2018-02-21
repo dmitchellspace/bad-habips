@@ -70,7 +70,7 @@ void NewSDFile() {
 		SDFile.println(RTCCurrentData[5]); //Add year
 		Serial.println("SD Card initialized, HAPIB.txt created"); //Success
 		SDCardPresent = 1; //SD Card Passed
-		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure"); //TODO Make sure to add rest of sensors
+		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure,S1,S2,S3,S4,S5,S5,M1,M2,M3");
 	}
 	else {
 		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed

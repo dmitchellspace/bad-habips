@@ -23,3 +23,6 @@ double EMA(double GyroData, double OldEMA);
 void Motor_Direction(byte Direction);
 void MotorSpeed(double MotorRPM);
 void NoMotorSpeed();
+void CheckBatteryLevel();
+
+extern int ADCData[9], ADC0_Select, ADC1_Select;

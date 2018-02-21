@@ -105,12 +105,25 @@ Version 12:
 	The writes for temperature and pressure sensors take a really long time due to their size.  As a result the motor on method is used in order to keep it in a
 	reasonable time window. The card is opened once, both values are written, and then the SD card is closed.
 	Read/Write are also added for when motor is on.
+Version 13:
+	Uploaded on 02/21/2018
+	A loop was added so that the motor algorithim is run 8 times in between reads and writes.  This includes a 10ms delay.  This delay can be taken back out if other functionality
+	needs to be added.  This keeps it so that the IMU is only being written to the SD card once every 70ms, which is the desired time.  This will make the motor more precise.
+	In order to read from all nine battery cells both ADC modules will be used.  The initialization was added to intialize both of them.  The isr was set up for 
+	the second ADC module, and a switch statement is used in both of the isrs.  This is used so that this can be run in the background while other data is being processed.
+	Added SD Card write of this data once per second.
+	Added function that checks the level of the batteries.  If they fall below 3.3V the battery is shut down.  If it's the main battery, the backup is turned on and the
+	main is turned off.  If it's the motor battery then the motor is simply disabled.
+	Once per second the data is written to the SD card.  When this write occurs it kicks off the next series of conversions.  These conversions happen in the background
+	(they're controlled by the isr).  This sequence should only take a few milliseconds, but it happens in the background while other processing is happening in the
+	foreground.
+	The functionality of the ADC has been tested and verified.
 	*/
 
 //Start Variable Declaration
 
 int BootTime;
-byte PressTempFlag = 0; //The pressure and temperature only needs to be collected once a second, and so a timer will be set up to indicate when it is time to check
+bool PressTempFlag = 0; //The pressure and temperature only needs to be collected once a second, and so a timer will be set up to indicate when it is time to check
 
 //This data is used to send the address to the IMU
 const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
@@ -126,6 +139,7 @@ const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
 
 //Variables for motor
 const byte CCW = 0, CW = 1;
+const int NumMotorWrites = 6;
 
 //End Variable Declaration
 
@@ -231,7 +245,6 @@ void CollectData() {
 			}
 		}
 		else {//SD Card is there, store data
-
 			XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 			SDCard_Write(XAccelData, Timestamp); //Write it to the SD Card
 
@@ -250,7 +263,7 @@ void CollectData() {
 			ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
 			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
 
-			if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
+			if (PressTempFlag) { //Has one second gone by since the last Temp/Press Measurement?
 				/*The temperature and pressure measurements are performed as six straight reads.  The first is the MSB of pressure, the
 				second is the LSB of the pressure.  The third is four addition least significant bits.  The 4th-6th registers are used 
 				the same way but for temperature.
@@ -270,6 +283,17 @@ void CollectData() {
 				PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
 				PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
+
+				if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
+					
+					for (int counter = 0; counter < 9; counter++) {
+						SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
+					}
+					CheckBatteryLevel(); //Check if the battery needs to be shut down
+					ADC0_Select = 0; //Reset the cycle
+					ADC1_Select = 0; //Reset the cycle
+					BeginADCConversion(); //Kick off the conversions
+				}
 
 				SDCardCloseFile();
 			} //End Pressure Temperature if
@@ -303,7 +327,6 @@ void ReactionWheelOn() {
 	TurnMotorOn(); //Enable the motor
 
 	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
-
 		XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 		SDCard_WriteMotorOn(XAccelData, Timestamp); //Write it to the SD Card
 
@@ -322,7 +345,7 @@ void ReactionWheelOn() {
 		ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
 		SDCard_WriteMotorOn(ZGyroData, NoTimestamp); //Write it to the SD Card
 
-		if (PressTempFlag == 1) { //Has one second gone by since the last Temp/Press Measurement?
+		if (PressTempFlag) { //Has one second gone by since the last Temp/Press Measurement?
 			PressTempFlag = 0; //Reset Flag
 			Heartbeat(); //1 second heartbeat
 
@@ -338,35 +361,50 @@ void ReactionWheelOn() {
 			PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 			SDCard_WriteMotorOn(PressureData, NoTimestamp); //Write to card
 
+			if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
+
+				for (int counter = 0; counter < 9; counter++) {
+					SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
+				}
+
+				CheckBatteryLevel(); //Check if the battery needs to be shut down
+				ADC0_Select = 0; //Reset the cycle
+				ADC1_Select = 0; //Reset the cycle
+				BeginADCConversion(); //Kick off the conversions
+			}
+
 		} //End Pressure Temperature if
 
 		SDCard_NewLineMotorOn(); //Enter a new line
 		SDCard_FlushBuffer(); //Flush the buffer
+		
+		//for (int counter = 0; counter <= NumMotorWrites; counter++) { //run the motor algorithim NumMotorWrites times and then read more data
+			ZGyro_RawData = (ZGyroData * GyroLSB) / 6; //The divide by 6 does the conversion from deg/sec to rev/minute (deg/sec * 60/360 = rev/min)
+			ZGyro_RPM = EMA(ZGyro_RawData, ZGyro_RPM); //Calculate the running average of the data.  This will be used to run the reaction wheel
 
-		ZGyro_RawData = (ZGyroData * GyroLSB) / 6; //The divide by 6 does the conversion from deg/sec to rev/minute (deg/sec * 60/360 = rev/min)
-		ZGyro_RPM = EMA(ZGyro_RawData, ZGyro_RPM); //Calculate the running average of the data.  This will be used to run the reaction wheel
+			if ((ZGyro_RPM < 0.05) && (ZGyro_RPM > -0.05)) {
+				ZGyro_RPM = 0; //This is a filter on the data so it doesn't spin when there is nothing going on.  It filters it for +/-0.05rev/min
+			}
 
-		if ((ZGyro_RPM < 0.05) && (ZGyro_RPM > -0.05)) {
-			ZGyro_RPM = 0; //This is a filter on the data so it doesn't spin when there is nothing going on.  It filters it for +/-0.05rev/min
-		}
+			Error = -ZGyro_RPM; //The '-' is for orientation
+			Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
+			Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
 
-		Error = -ZGyro_RPM; //The '-' is for orientation
-		Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
-		Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
+			if (Control_Speed > 0.2) {
+				Motor_Direction(CCW); //Turn it on CCW
+				MotorSpeed(Control_Speed); //Turn it on at the desired speed
+			}
 
-		if (Control_Speed > 0.2) {
-			Motor_Direction(CCW); //Turn it on CCW
-			MotorSpeed(Control_Speed); //Turn it on at the desired speed
-		}
+			else if (Control_Speed < -0.2) {
+				Motor_Direction(CW); //Turn it on CW
+				MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
+			}
 
-		else if (Control_Speed < -0.2) { 
-			Motor_Direction(CW); //Turn it on CW
-			MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
-		}
-
-		else {
-			NoMotorSpeed(); //Speed is = 0
-		}
+			else {
+				NoMotorSpeed(); //Speed is = 0
+			}
+			delay(10);
+		//}//End for loop
 
 	}//End While
 
