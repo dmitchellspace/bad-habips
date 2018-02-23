@@ -118,6 +118,13 @@ Version 13:
 	(they're controlled by the isr).  This sequence should only take a few milliseconds, but it happens in the background while other processing is happening in the
 	foreground.
 	The functionality of the ADC has been tested and verified.
+Version 14:
+	Uploaded on 02/23/2018
+	A series of SD card files were added.  Because they need to be of type const char* they were hardcoded in an array.  It is set up so that a new file can be added every
+	5 minutes for 4 hours.  After it adds the last file it will just continue to write to this file.
+	The file number that we are on is written to non-volitiale memory.  This is done so that if we lose power we don't overwrite the data that is already written
+	The RTC is checked on startup to see if it is already initialized.  This is done in case the teensy loses power but the RTC does not.  If this is the case the old 
+	RTC values are used.
 	*/
 
 //Start Variable Declaration
@@ -136,6 +143,8 @@ int PressureData, TemperatureData;
 
 //This is for the SD Card writes
 const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
+const int NewSDFileNumSeconds = 300; //5 minutes for a new file
+int CurrentNumSeconds = 0; // Current time until next SD File
 
 //Variables for motor
 const byte CCW = 0, CW = 1;
@@ -306,6 +315,11 @@ void CollectData() {
 				SDCard_SensorFailure(SPI0Timeout); //Print Error Message
 			}
 
+			if (CurrentNumSeconds >= NewSDFileNumSeconds) {
+				NewSDFile(); //Create a new file
+				CurrentNumSeconds = 0; //Restart the counter
+			}
+
 		} //End SD card else
 	} //End While statement
 } //End collect Data
@@ -374,6 +388,13 @@ void ReactionWheelOn() {
 			}
 
 		} //End Pressure Temperature if
+
+		if (CurrentNumSeconds >= NewSDFileNumSeconds) {
+			SDCardCloseFile(); //Close the previous file
+			NewSDFile(); //Create a new file
+			CurrentNumSeconds = 0; //Restart the counter
+			SDCardOpenFile(); //Open the new file
+		}
 
 		SDCard_NewLineMotorOn(); //Enter a new line
 		SDCard_FlushBuffer(); //Flush the buffer
@@ -472,4 +493,7 @@ short CalibrationDataRead(int Address) {
  void ftm0_isr() { //1 Second Timer
 	FTM0_SC &= ~0x80; //Clear the flag
 	PressTempFlag = 1;
+	if (FileNumber < 48) { //If its the last file you dont want to increment this anymore
+		CurrentNumSeconds++;
+	}
 }
