@@ -13,3 +13,5 @@
 #endif
 
 void Init_GPIO();
+void SelfTestDisplayResults();
+extern bool FaultMatrix[8];

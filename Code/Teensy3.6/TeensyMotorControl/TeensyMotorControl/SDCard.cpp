@@ -6,10 +6,11 @@
 #include <SD.h>
 #include "Clocks.h"
 #include <EEPROM.h>
+#include "GPIO.h"
 
 //Define File Names
-const char* SDFileName[48] = { "HABIP0.csv", "HABIP1.csv", "HABIP2.csv", "HABIP3.csv", "HABIP4.csv", "HABIP5.csv", "HABIP6.csv", "HABIP7.csv", "HABIP8.csv", "HABIP9.csv", "HABIP10.csv", "HABIP11.csv", "HABIP12.csv", "HABIP13.csv", "HABIP14.csv", "HABIP15.csv", "HABIP16.csv", "HABIP17.csv", "HABIP18.csv", "HABIP19.csv", "HABIP20.csv", "HABIP21.csv", "HABIP22.csv", "HABIP23.csv", "HABIP24.csv", "HABIP25.csv", "HABIP26.csv", "HABIP27.csv", "HABIP28.csv", "HABIP29.csv", "HABIP30.csv", "HABIP31.csv", "HABIP32.csv", "HABIP33.csv", "HABIP34.csv", "HABIP35.csv", "HABIP36.csv", "HABIP37.csv", "HABIP38.csv", "HABIP39.csv", "HABIP40.csv", "HABIP41.csv", "HABIP42.csv", "HABIP43.csv", "HABIP44.csv", "HABIP45.csv", "HABIP46.csv", "HABIP47.csv" };
-//End File Names
+//const char* SDFileName[48] = { "HABIP0.csv", "HABIP1.csv", "HABIP2.csv", "HABIP3.csv", "HABIP4.csv", "HABIP5.csv", "HABIP6.csv", "HABIP7.csv", "HABIP8.csv", "HABIP9.csv", "HABIP10.csv", "HABIP11.csv", "HABIP12.csv", "HABIP13.csv", "HABIP14.csv", "HABIP15.csv", "HABIP16.csv", "HABIP17.csv", "HABIP18.csv", "HABIP19.csv", "HABIP20.csv", "HABIP21.csv", "HABIP22.csv", "HABIP23.csv", "HABIP24.csv", "HABIP25.csv", "HABIP26.csv", "HABIP27.csv", "HABIP28.csv", "HABIP29.csv", "HABIP30.csv", "HABIP31.csv", "HABIP32.csv", "HABIP33.csv", "HABIP34.csv", "HABIP35.csv", "HABIP36.csv", "HABIP37.csv", "HABIP38.csv", "HABIP39.csv", "HABIP40.csv", "HABIP41.csv", "HABIP42.csv", "HABIP43.csv", "HABIP44.csv", "HABIP45.csv", "HABIP46.csv", "HABIP47.csv" };
+const char* SDFileName[48] = { "H0","H1","H2","H3","H4","H5","H6","H7","H8","H9","H10","H11","H12","H13","H14","H15","H16","H17","H18","H19","H20","H21","H22","H23","H24","H25","H26","H27","H28","H29","H30","H31","H32","H33","H34","H35","H36","H37","H38","H39","H40","H41","H42","H43","H44","H45","H46","H47"};
 
 const int chipSelect = BUILTIN_SDCARD;
 File SDFile;
@@ -21,6 +22,7 @@ int FileNumberMemoryLocation = 12; //This is used to store the file number in EE
 void SDCard_Setup() { //Initiliaze SD Card
 	if (!SD.begin(chipSelect)) { //Check if SD Card Is present
 		Serial.println("SD Card failed, or Not Present"); //It is not
+		FaultMatrix[7] = 1;
 		SDCardPresent = 0; //SD Card Failed
 	}
 	else { //Set up New File
@@ -81,7 +83,7 @@ void NewSDFile() {
 		Serial.print("SD Card initialized, HAPIB.csv created.  File Number: "); //Success
 		Serial.println(FileNumber + 1);
 		SDCardPresent = 1; //SD Card Passed
-		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure,S1,S2,S3,S4,S5,S5,M1,M2,M3");
+		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure,S1,S2,S3,S4,S5,S5,M1,M2,M3,M_Current,LDO_Current");
 	}
 	else {
 		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed

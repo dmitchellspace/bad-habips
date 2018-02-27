@@ -125,6 +125,28 @@ Version 14:
 	The file number that we are on is written to non-volitiale memory.  This is done so that if we lose power we don't overwrite the data that is already written
 	The RTC is checked on startup to see if it is already initialized.  This is done in case the teensy loses power but the RTC does not.  If this is the case the old 
 	RTC values are used.
+Version 15:
+	Uploaded on 02/27/2018
+	Added a check where the user can press the button in order to restart the file system.  If the button is pressed before the LED starts to flash the calibration on the IMU
+	will be performed.  If the button is pressed in the ~4second window while the LED is flashing rapidly the file system will restart at number 0.  Anytime after this window the
+	button will not do anything.
+	The file names were shortened from HABIP#.csv to H#.  This was done in order to save on RAM.
+	Added a function to display the results of the Self test on the LEDs. A boolean array was added to store the results. The array is formatted as follows:
+	[Current Sensor, ADC0, ADC1, DAQCS SPI, Temp/Press, IMU0, IMU1, SD Card]
+	There are two kinds of failures defined, "Hard Failures", and "Soft Failures".  Hard failures make it such that the unit is not operational.  A soft failure means that
+	something is not working, but the unit can fly anyway.  A hard failure is defined by two different scenarios:
+	1) IMU0 and IMU1 Failures
+	2) SD Card Failure
+	A soft failure is any other failure that occurs.
+	A hard failure is defined by the Red LED on the board being turned on and left on until reset.
+	A soft failure is defined by blinking the Red LED.  The LED is blinked the position in the array + 1 times, ie. Current sensor = 1 time.
+	If multiple soft failures occur there is a two second delay between each set.
+	The green LED is turned on if there is no Hard Failure.
+	I2C interface with the Currrent sensor was written.  It uses the same style of read and writes as the pressure/temperature sensor, and so that code was reused.
+	Once a second a read is done from the two current sensors and stored on the SD card.  It is just one byte of data.
+	A ST is added for the current sensor where it reads from the ID register on the board.  This is how it's marked as a pass or a fail.  The sensor is initialized either way
+	and then the data is read.
+	The Current sensor has not been tested.  It just came in the mail and will be tested in the upcoming weeks.
 	*/
 
 //Start Variable Declaration
@@ -140,6 +162,9 @@ int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibration
 
 //This is used for Temperature and Pressure
 int PressureData, TemperatureData;
+
+//This is for the current sensor
+int LDO_Current, MainCurrent;
 
 //This is for the SD Card writes
 const byte Timestamp = 1, NoTimestamp = 0, SPI0Timeout = 0;
@@ -219,10 +244,34 @@ void setup() { //Only runs once upon powering up the board
 		}
 	}
 
+	delay(1000);
+
+	/*
+	This delay is here so that the user has enough time to make the adjustment to go from the calibration scan to the restart file system scan.
+	In order to begin the IMU calibration sequence the user should hold the button right at startup.  To restart the file system, the user
+	should hold the button once they are prompted to do by the LEDs.
+	*/
+
+	for (int counter = 0; counter <= 10; counter++) { //This runs for ~4 seconds
+
+			GPIOC_PTOR ^= 0x20;
+			delay(200);
+			GPIOC_PTOR ^= 0x20;
+			delay(200);
+
+		if (!digitalRead(PIN_A4)) { //The button should be held once the LED starts blinking in order for the sequence to start
+			FileNumber = -1; //Reinitialize the file number
+			NewSDFile(); //Recreate the first file
+			break;
+		}
+	}
+
+	SelfTestDisplayResults(); //Display the results on the red LED
+
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
-
+	
 }
 
 // the loop function runs over and over again until power down or reset
@@ -281,7 +330,7 @@ void CollectData() {
 				PressTempFlag = 0; //Reset Flag
 				Heartbeat(); //1 second heartbeat
 
-				TempPressureRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister);
+				I2CRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister);
 
 				TemperatureData = I2CRxData[2];
 				TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
@@ -293,6 +342,14 @@ void CollectData() {
 				PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
 
+				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
+				MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
+				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorLDO);
+				LDO_Current = I2CRxData[5]; //Get the LDO Current from the buffer
+
+				SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
+				SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
+
 				if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
 					
 					for (int counter = 0; counter < 9; counter++) {
@@ -302,7 +359,7 @@ void CollectData() {
 					ADC0_Select = 0; //Reset the cycle
 					ADC1_Select = 0; //Reset the cycle
 					BeginADCConversion(); //Kick off the conversions
-				}
+				} //End ADC if
 
 				SDCardCloseFile();
 			} //End Pressure Temperature if
@@ -363,7 +420,7 @@ void ReactionWheelOn() {
 			PressTempFlag = 0; //Reset Flag
 			Heartbeat(); //1 second heartbeat
 
-			TempPressureRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister); //Read Temp/Press
+			I2CRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister); //Read Temp/Press
 
 			TemperatureData = I2CRxData[2];
 			TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
@@ -374,6 +431,14 @@ void ReactionWheelOn() {
 			PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
 			PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 			SDCard_WriteMotorOn(PressureData, NoTimestamp); //Write to card
+
+			I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
+			MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
+			I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorLDO);
+			LDO_Current = I2CRxData[5]; //Get the LDO Current from the buffer
+
+			SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
+			SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
 
 			if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
 

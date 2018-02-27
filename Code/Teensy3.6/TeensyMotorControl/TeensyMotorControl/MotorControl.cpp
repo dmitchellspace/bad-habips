@@ -1,6 +1,8 @@
 // 
 // 
 // 
+#include "MotorControl.h"
+#include "GPIO.h"
 
 //Pin Numbers for Motor Control Pins
 const int MotorEnable = 7;
@@ -23,7 +25,6 @@ float BatteryCheckData[9], RunningMainVoltage, RunningMotorVoltage;
 const float BatteryDivider[9] = { 0.59523, 0.29752, 0.19844, 0.148766, 0.11841, 0.09921, 0.59523, 0.29752, 0.19844 };
 const float ADC_LSB = 0.00005035400390625; //3.3V scale, 16 bit resolution
 bool MainBatteryBad, MotorBatteryBad;
-#include "MotorControl.h"
 
 void Init_MotorInterface() {
 	pinMode(MotorControl_Input, INPUT);//Set up Pin 20 to Input to Control Turning on Motor from Host MSP430
@@ -66,6 +67,7 @@ void Init_ADC() {
 	}
 	else {
 		Serial.println("ADC0 Failed to Initialize");
+		FaultMatrix[1] = 1;
 	}
 
 	if ((ADC1_SC3 & 0x40) == 0x00) { //Check if Calibration Passed
@@ -86,6 +88,7 @@ void Init_ADC() {
 	}
 	else {
 		Serial.println("ADC1 Failed to Initialize");
+		FaultMatrix[2] = 1;
 	}
 
 	ADC0_Select = 0;

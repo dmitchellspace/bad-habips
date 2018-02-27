@@ -3,6 +3,7 @@
 // 
 
 #include "SPI.h"
+#include "GPIO.h"
 
 const int IMU_ST_Result = 0x68; //This is what the ST data should return.
 const byte IMU_ST_Address = 0xF, EnableGyroAddress = 0x1E, TurnOnGyroAddress = 0x10, EnableAccelAddress = 0x1F, TurnOnAccelAddress = 0x20, EnableGyroData = 0x38;
@@ -33,6 +34,7 @@ void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
 	SPI1_SR = 0xDA0A0000; // Clears all the FIFOs and flags
 	SPI1_MCR = 0xC00; // Sets up SPI1 as a slave device.  Clears the buffer
 	Serial.println("DAQCS SPI Bus Successfully Initialized");
+	//TODO Have a failure case and set the Fault Matrix Entry
 }
 
 void Init_IMU_SPI() { //Set up SPI to act as master with IMU
@@ -85,6 +87,7 @@ void IMUSelfTest() {
 		}
 		else {
 			Serial.println("IMU 0 Selftest Failed");
+			FaultMatrix[5] = 1;
 			IMUSelect = IMU1;
 		}
 
@@ -95,6 +98,7 @@ void IMUSelfTest() {
 	}
 	else {
 		Serial.println("IMU 1 Selftest Failed");
+		FaultMatrix[6] = 1;
 	}
 
 	IMUWrite(EnableAccelAddress, EnableAccelData, 0); //Enable Accel on IMU0

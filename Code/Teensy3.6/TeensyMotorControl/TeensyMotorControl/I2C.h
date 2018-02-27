@@ -13,8 +13,12 @@
 #endif
 
 void Init_I2C();
-void TempPressureRead(byte NumBytesRx, byte I2CAddress, byte I2CRegister);
-void TempPressureWrite(byte I2CAddress, byte I2CRegister, byte TxData);
+void I2CRead(byte NumBytesRx, byte I2CAddress, byte I2CRegister);
+void I2CWrite(byte I2CAddress, byte I2CRegister, byte TxData);
+void InitTempPressure();
+void InitCurrentSensor();
 
 extern const byte TempPressureAddress, TempPressureStartRegister, TempPressureNumRegisters;
 extern byte I2CRxData[6];
+
+extern const byte CurrentSensorAddress, CurrentSensorLDO, CurrentSensorMainBattery, CurrentSensorNumBytes;
