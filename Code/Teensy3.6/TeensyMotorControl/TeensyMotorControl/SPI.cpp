@@ -10,6 +10,8 @@ const byte IMU_ST_Address = 0xF, EnableGyroAddress = 0x1E, TurnOnGyroAddress = 0
 const byte TurnOnGyroData = 0xD8, EnableAccelData = 0x38, TurnOnAccelData = 0xD0, IMU0 = 0, IMU1 = 1, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D;
 int IMU_ST_Data;
 byte SPI0RxData, SPI0CompleteFlag = 0, DataNotValidSPI0, IMUSelect; //This is all used for SPI0
+byte SPI1RxByteCount; //This counts the number of bytes that have been received.  It should be three bytes per transaction.  This is intialized up here so that it can be set to 0.
+bool ResetSPI1Bus, TxSPI1Msg; //SPI1 Variables
 
 void Init_SPI() {//Initiliaze SPI interface
 	Init_DAQCS_SPI(); //Set up SPI to act as slave with main MSP430
@@ -31,8 +33,13 @@ void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
 	SPI1_MCR = 0x000; // Disable the Module
 	SPI1_CTAR0_SLAVE = 0x3E000000; // Frame size of 8 (writes a 7 to the register), Inactive state of SCK is high, 
 								  // Data is changed on leading edge of SCK and captured on trailing edge
+	SPI1_RSER |= 0x80000000; //Enable interrupts on complete of transfer
+	NVIC_ISER0 |= 0x8000000; //Enable interrupts
 	SPI1_SR = 0xDA0A0000; // Clears all the FIFOs and flags
 	SPI1_MCR = 0xC00; // Sets up SPI1 as a slave device.  Clears the buffer
+	ResetSPI1Bus = 0; //Don't restart the bus
+	TxSPI1Msg = 0; //Don't transmit the next cycle
+	SPI1RxByteCount = 0; //You've Rx'd 0 bytes
 	Serial.println("DAQCS SPI Bus Successfully Initialized");
 	//TODO Have a failure case and set the Fault Matrix Entry
 }

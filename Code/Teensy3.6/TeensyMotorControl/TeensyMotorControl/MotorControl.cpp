@@ -139,9 +139,7 @@ void CheckBatteryLevel() {
 	MotorBatteryBad = 0; //Reset this to 0
 
 	for (int counter = 0; counter < 6; counter++) { //Loop for the Motor battery
-		//Serial.println(ADCData[counter]);
 		BatteryCheckData[counter] = ADCData[counter] * ADC_LSB; //Scale it to 3.3V
-		//Serial.println(BatteryCheckData[counter]);
 		BatteryCheckData[counter] = (BatteryCheckData[counter] / BatteryDivider[counter]) - RunningMotorVoltage; //Calculate the voltage of the cell
 		RunningMotorVoltage = BatteryCheckData[counter] + RunningMotorVoltage;
 		if (BatteryCheckData[counter] < 3.3) { //Is it below the acceptable level?

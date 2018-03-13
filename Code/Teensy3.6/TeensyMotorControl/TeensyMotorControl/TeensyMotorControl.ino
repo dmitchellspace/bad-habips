@@ -147,12 +147,36 @@ Version 15:
 	A ST is added for the current sensor where it reads from the ID register on the board.  This is how it's marked as a pass or a fail.  The sensor is initialized either way
 	and then the data is read.
 	The Current sensor has not been tested.  It just came in the mail and will be tested in the upcoming weeks.
+Version 16:
+	Uploaded on 03/13/2018
+	Added SPI Interface with the MSP430.
+	Messages are parsed and data is formatted to be sent out.  Everything is done inside the ISR, because a request from the MSP430 can come at any point in time.
+	This was tested using a test bench constructed in a seperate Visual Studio file.  The MSP430 code has not yet been written, and so this was the only method to test.
+	The functionality of the algorithim was verified, but the functonality of the SPI slave configuration cannot be verified until the MSP430 code has been written.
 	*/
 
 //Start Variable Declaration
 
 int BootTime;
 bool PressTempFlag = 0; //The pressure and temperature only needs to be collected once a second, and so a timer will be set up to indicate when it is time to check
+
+//Data to be used for SPI
+short SPI1Data[16]; 
+const byte SPIXGyro = 0, SPIXAccel = 1, SPIYGyro = 2, SPIYAccel = 3, SPIZGyro = 4, SPIZAccel = 5, SPIMainVoltage = 6;
+const byte SPIMainCurrent = 7, SPIPressure = 8, SPIOnBoardTemp = 9, SPIOffBoardTemp = 10, SPIMotorEnable = 11, SPIMotorDirection = 12;
+const byte SPIMotorVoltage = 13, SPIMotorCurrent = 14, SPIMotorSpeed = 15; //These are where in the array everything is stored
+
+//These variables are used for SPI1.  They are up here so they don't get reinitailized.
+unsigned short SPI1RxData, SPI1TxData; //The data will be placed into a short.  The CRC will be placed into it's own byte
+int TempCRC, TempCRCData, CRCExponential;
+short SPI1_Tx_Data[16];
+short SPI1_Tx_SegmentSelect[16], SPI1_Tx_SegmentData[16];
+short MsgNum, SegmentSelect, TxMsgNum;
+byte RxCRC, TxCRC, TotalDataPiecesTx, NextTxByte, CurrentDataTx, TempBitStorage;
+bool MsgError, NoMessage4[16] = { 0 }; //This is set to 1 if the message is bad
+const byte SegmentSelectSPI1[16] = { 1,1,1,1,1,1,3,3,0,2,2,4,4,4,4,4 }; // This is the segment select that is tx.  It corresponds with the order of SPI1_Tx_Data
+const byte SegmentDataSPI1[16] = { 0,1,2,3,4,5,0,1,0,0,1,0,1,2,3,4 }; //This is the Segment Data to Tx.  It also corresponds with the order of SPI1_Tx_Data
+const byte CRC = 0xB1;
 
 //This data is used to send the address to the IMU
 const byte XAccelAddress = 0x29, YAccelAddress = 0x2B, ZAccelAddress = 0x2D, XGyroAddress = 0x19, YGyroAddress = 0x1B, ZGyroAddress = 0x1D, IMU0 = 0, IMU1 = 1;
@@ -293,6 +317,8 @@ void CollectData() {
 	The writes for temperature and pressure sensors take a really long time due to their size.  As a result the motor on method is used in order to keep it in a 
 	reasonable time window. The card is opened once, both values are written, and then the SD card is closed.
 	*/
+	SPI1Data[SPIMotorEnable] = 0;
+
 	while (!digitalRead(PIN_A6)) { //Stay in this loop until Reaction Wheel is turned on
 
 		 if (SDCardPresent == 0) { //SD Card is not present
@@ -305,21 +331,27 @@ void CollectData() {
 		else {//SD Card is there, store data
 			XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 			SDCard_Write(XAccelData, Timestamp); //Write it to the SD Card
+			SPI1Data[SPIXAccel] = XAccelData; //This makes it a 16 bit number instead of 32
 
 			YAccelData = IMURead(YAccelAddress, 0, IMUSelect); //Collect Y Accel
 			SDCard_Write(YAccelData, NoTimestamp); //Write it to the SD Card
+			SPI1Data[SPIYAccel] = YAccelData;
 			
 			ZAccelData = IMURead(ZAccelAddress, 0, IMUSelect); //Collect Z Accel
 			SDCard_Write(ZAccelData, NoTimestamp); //Write it to the SD Card
-			
+			SPI1Data[SPIZAccel] = ZAccelData;
+
 			XGyroData = IMURead(XGyroAddress, 0, IMUSelect) - XCalibrationData; //Collect X Gyro
 			SDCard_Write(XGyroData, NoTimestamp); //Write it to the SD Card
-			
+			SPI1Data[SPIXGyro] = XGyroData;
+
 			YGyroData = IMURead(YGyroAddress, 0, IMUSelect) - YCalibrationData; //Collect Y Gyro
 			SDCard_Write(YGyroData, NoTimestamp); //Write it to the SD Card
-			
+			SPI1Data[SPIYGyro] = YGyroData;
+
 			ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
 			SDCard_Write(ZGyroData, NoTimestamp); //Write it to the SD Card
+			SPI1Data[SPIZGyro] = ZGyroData;
 
 			if (PressTempFlag) { //Has one second gone by since the last Temp/Press Measurement?
 				/*The temperature and pressure measurements are performed as six straight reads.  The first is the MSB of pressure, the
@@ -336,11 +368,13 @@ void CollectData() {
 				TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
 				TemperatureData = ((TemperatureData << 4) & 0xFFFF0) | ((I2CRxData[0] >> 4) & 0x0F);
 				SDCard_WriteMotorOn(TemperatureData, NoTimestamp);
+				SPI1Data[SPIOnBoardTemp] = (TemperatureData / (2^4)); //Cut off last four bits
 
 				PressureData = I2CRxData[5];
 				PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
 				PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
+				SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off last four bits
 
 				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
 				MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
@@ -350,11 +384,19 @@ void CollectData() {
 				SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
 				SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
 
+				SPI1Data[SPIMainCurrent] = MainCurrent;
+				SPI1Data[SPIMotorCurrent] = LDO_Current;
+
+
 				if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
 					
 					for (int counter = 0; counter < 9; counter++) {
 						SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
 					}
+
+					SPI1Data[SPIMainVoltage] = ADCData[6]; //For these two just the first cell will be used
+					SPI1Data[SPIMotorVoltage] = ADCData[0];
+
 					CheckBatteryLevel(); //Check if the battery needs to be shut down
 					ADC0_Select = 0; //Reset the cycle
 					ADC1_Select = 0; //Reset the cycle
@@ -394,27 +436,35 @@ void ReactionWheelOn() {
 	double ki = -0.2; //For algorithim
 	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
 
+	SPI1Data[SPIMotorEnable] = 1;
+
 	SDCardOpenFile(); //Open the file for the duration of the motor being turned on
 	TurnMotorOn(); //Enable the motor
 
 	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
 		XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 		SDCard_WriteMotorOn(XAccelData, Timestamp); //Write it to the SD Card
+		SPI1Data[SPIXAccel] = XAccelData;
 
 		YAccelData = IMURead(YAccelAddress, 0, IMUSelect); //Collect Y Accel
 		SDCard_WriteMotorOn(YAccelData, NoTimestamp); //Write it to the SD Card
+		SPI1Data[SPIYAccel] = YAccelData;
 
 		ZAccelData = IMURead(ZAccelAddress, 0, IMUSelect); //Collect Z Accel
 		SDCard_WriteMotorOn(ZAccelData, NoTimestamp); //Write it to the SD Card
+		SPI1Data[SPIZAccel] = ZAccelData;
 
 		XGyroData = IMURead(XGyroAddress, 0, IMUSelect) - XCalibrationData; //Collect X Gyro
 		SDCard_WriteMotorOn(XGyroData, NoTimestamp); //Write it to the SD Card
+		SPI1Data[SPIXGyro] = XGyroData;
 
 		YGyroData = IMURead(YGyroAddress, 0, IMUSelect) - YCalibrationData; //Collect Y Gyro
 		SDCard_WriteMotorOn(YGyroData, NoTimestamp); //Write it to the SD Card
+		SPI1Data[SPIYGyro] = YGyroData;
 
 		ZGyroData = IMURead(ZGyroAddress, 0, IMUSelect) - ZCalibrationData; //Collect Z Gyro
 		SDCard_WriteMotorOn(ZGyroData, NoTimestamp); //Write it to the SD Card
+		SPI1Data[SPIZGyro] = ZGyroData;
 
 		if (PressTempFlag) { //Has one second gone by since the last Temp/Press Measurement?
 			PressTempFlag = 0; //Reset Flag
@@ -426,11 +476,13 @@ void ReactionWheelOn() {
 			TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
 			TemperatureData = ((TemperatureData << 4) & 0xFFFF0) | ((I2CRxData[0] >> 4) & 0x0F);
 			SDCard_WriteMotorOn(TemperatureData, NoTimestamp); //Write to card
+			SPI1Data[SPIOnBoardTemp] = (TemperatureData / (2^4)); //Cut off the last four bits
 
 			PressureData = I2CRxData[5];
 			PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
 			PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
 			SDCard_WriteMotorOn(PressureData, NoTimestamp); //Write to card
+			SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off the last four bits
 
 			I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
 			MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
@@ -439,12 +491,17 @@ void ReactionWheelOn() {
 
 			SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
 			SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
+			SPI1Data[SPIMainCurrent] = MainCurrent;
+			SPI1Data[SPIMotorCurrent] = LDO_Current;
 
 			if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
 
 				for (int counter = 0; counter < 9; counter++) {
 					SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
 				}
+
+				SPI1Data[SPIMainVoltage] = ADCData[6]; //For these two just the first cell will be used
+				SPI1Data[SPIMotorVoltage] = ADCData[0];
 
 				CheckBatteryLevel(); //Check if the battery needs to be shut down
 				ADC0_Select = 0; //Reset the cycle
@@ -475,13 +532,16 @@ void ReactionWheelOn() {
 			Error = -ZGyro_RPM; //The '-' is for orientation
 			Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
 			Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
+			//SPI1Data[SPIMotorSpeed] = (Control_Speed / 2 ^ 32); //This is a double so you need to do 2^32
 
 			if (Control_Speed > 0.2) {
+				SPI1Data[SPIMotorDirection] = 0;
 				Motor_Direction(CCW); //Turn it on CCW
 				MotorSpeed(Control_Speed); //Turn it on at the desired speed
 			}
 
 			else if (Control_Speed < -0.2) {
+				SPI1Data[SPIMotorDirection] = 1;
 				Motor_Direction(CW); //Turn it on CW
 				MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
 			}
@@ -562,3 +622,304 @@ short CalibrationDataRead(int Address) {
 		CurrentNumSeconds++;
 	}
 }
+
+ void spi1_isr() {
+	 //See ICD for details on how the messages are constructed. Document name MSP430_Teensy_ICD.docx in Document folder in 
+	 // bad-hapibs Github
+
+	 SPI1_SR |= 0x80000000; //Clears bit to indicate interrupt
+
+	 if (SPI1RxByteCount == 0) { //First byte received
+		 SPI1RxByteCount++;
+		 SPI1RxData = 0;
+		 MsgError = 0;
+		 SPI1RxData = (SPI1_POPR & 0xFF);
+		 MsgNum = SPI1RxData >> 4; //The Msg number is the most significant nibble
+
+		 switch (MsgNum) {
+		 case 0:
+			 break; //Bits 19-16 are not used
+		 case 2:
+			 SegmentSelect = (SPI1RxData & 0x0F); //Get the segment select
+
+			 if (SegmentSelect <= 4) { //these only need one piece of data
+				 TotalDataPiecesTx = 1;
+			 }
+			 else { //These need multiple pieces of data
+				 switch (SegmentSelect) { //Find out how much data
+				 case 5:
+					 TotalDataPiecesTx = 3;
+					 break;
+				 case 6:
+					 TotalDataPiecesTx = 3;
+					 break;
+				 case 7:
+					 TotalDataPiecesTx = 6;
+					 break;
+				 case 8:
+					 TotalDataPiecesTx = 2;
+					 break;
+				 case 9:
+					 TotalDataPiecesTx = 2;
+					 break;
+				 case 10:
+					 TotalDataPiecesTx = 4;
+					 break;
+				 case 11:
+					 TotalDataPiecesTx = 16;
+					 break;
+				 default:
+					 MsgError = 1;
+					 TxMsgNum = 1;
+					 TxSPI1Msg = 1;
+					 break;
+				 } //End switch
+			 } //End else
+
+			 break;
+		 case 5:
+			 SPI0_PUSHR_SLAVE = (SPI1TxData & 0xFF); //Tx Second Byte
+			 break; //Bits 19-16 are not used
+		 default:
+			 MsgError = 1;
+			 TxMsgNum = 1;
+			 TxSPI1Msg = 1;
+			 break;
+		 } //End switch
+
+		 SPI1RxData = SPI1RxData << 8; //Byte shift
+	 } //End if
+
+	 else if (SPI1RxByteCount == 1) { //Second byte received
+		 SPI1RxByteCount++;
+		 SPI1RxData = (SPI1RxData & 0xFF00) | (SPI1_POPR & 0xFF); //Put it in the SPI1RxData 
+		 switch (MsgNum)
+		 {
+		 case 0:
+			 if ((SPI1RxData & 0x20) != 0) {
+				 ResetSPI1Bus = 1; //The bus needs to be reset
+			 }
+			 else if ((SPI1RxData & 0x10) != 0) {
+				 TxSPI1Msg = 1; //Previous Message Needs to be sent
+			 }
+			 else {
+				 TxSPI1Msg = 1; //Resend the message
+				 TxMsgNum = (SPI1RxData & 0x0F); //Resend the message number stored in these bits
+			 }
+			 break;
+		 case 2://Message 2
+
+			 switch (SegmentSelect) { //Get the data to be transmitted
+			 case 0: //Pressure Data
+				 SPI1_Tx_Data[0] = SPI1Data[SPIPressure];
+				 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[SPIPressure];
+				 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[SPIPressure];
+				 break;
+			 case 1: //Get the proper IMU data
+				 SPI1_Tx_Data[0] = SPI1Data[(SPI1RxData & 0x07) + SPIXGyro];
+				 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[(SPI1RxData & 0x07) + SPIXGyro];
+				 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[(SPI1RxData & 0x07) + SPIXGyro];
+				 break;
+			 case 2://Get the temperature data
+				 SPI1_Tx_Data[0] = SPI1Data[((SPI1RxData >> 3) & 0x01) + SPIOnBoardTemp];
+				 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[((SPI1RxData >> 3) & 0x01) + SPIOnBoardTemp];
+				 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[((SPI1RxData >> 3) & 0x01) + SPIOnBoardTemp];
+				 break;
+			 case 3: //Get the battery Data
+				 SPI1_Tx_Data[0] = SPI1Data[((SPI1RxData >> 4) & 0x01) + SPIMainVoltage];
+				 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[((SPI1RxData >> 4) & 0x01) + SPIMainVoltage];
+				 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[((SPI1RxData >> 4) & 0x01) + SPIMainVoltage];
+				 break;
+			 case 4:  //Motor Data
+				 if (((SPI1RxData >> 5) & 0x07) < 2) { //Is it a binary response?
+					 NoMessage4[0] = 1;
+					 SPI1_Tx_Data[0] = SPI1Data[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+					 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+					 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+				 }
+				 else {
+					 SPI1_Tx_Data[0] = SPI1Data[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+					 SPI1_Tx_SegmentSelect[0] = SegmentSelectSPI1[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+					 SPI1_Tx_SegmentData[0] = SegmentDataSPI1[((SPI1RxData >> 5) & 0x07) + SPIMotorEnable];
+				 }
+				 break;
+			 case 5://All gyro data
+				 for (int counter = 0; counter < 3; counter++) {
+					 SPI1_Tx_Data[counter] = SPI1Data[(counter * 2) + SPIXGyro];
+					 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[(counter * 2) + SPIXGyro];
+					 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[(counter * 2) + SPIXGyro];
+				 } //End for
+				 break;
+			 case 6: //All Accel Data
+				 for (int counter = 0; counter < 3; counter++) {
+					 SPI1_Tx_Data[counter] = SPI1Data[(counter * 2) + 1 + SPIXGyro];
+					 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[(counter * 2) + 1 + SPIXGyro];
+					 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[(counter * 2) + 1 + SPIXGyro];
+				 } //End for
+				 break;
+			 case 7: //All IMU Data
+				 for (int counter = 0; counter < 6; counter++) {
+					 SPI1_Tx_Data[counter] = SPI1Data[counter + SPIXGyro];
+					 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[counter + SPIXGyro];
+					 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[counter + SPIXGyro];
+				 } //End for
+				 break;
+			 case 8: //Both Temperature Sensors
+				 for (int counter = 0; counter < 2; counter++) {
+					 SPI1_Tx_Data[counter] = SPI1Data[(counter + SPIOnBoardTemp)];
+					 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[(counter + SPIOnBoardTemp)];
+					 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[(counter + SPIOnBoardTemp)];
+				 }//End for
+				 break;
+			 case 9: //Main Battery Data
+				 for (int counter = 0; counter < 2; counter++) {
+					 SPI1_Tx_Data[counter] = SPI1Data[(counter + SPIMainVoltage)];
+					 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[(counter + SPIMainVoltage)];
+					 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[(counter + SPIMainVoltage)];
+				 }//End for
+				 break;
+			 case 10: //All Motor Data
+				 for (int counter = 0; counter < 5; counter++) {
+					 if (counter < 2) {
+						 SPI1_Tx_Data[counter] = SPI1Data[SPIMotorEnable + counter];
+						 NoMessage4[counter] = 1;
+						 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[SPIMotorEnable + counter];
+						 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[SPIMotorEnable + counter];
+					 }//End if
+					 else {
+						 SPI1_Tx_Data[counter] = SPI1Data[SPIMotorEnable + counter];
+						 NoMessage4[counter] = 0; //This shouldn't be necessary
+						 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[SPIMotorEnable + counter];
+						 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[SPIMotorEnable + counter];
+					 }// end else
+				 } //End for
+				 break;
+			 case 11: //All Data
+				 for (int counter = 0; counter < 15; counter++) {
+					 if ((counter == SPIMotorEnable) || (counter == SPIMotorDirection)) {
+						 SPI1_Tx_Data[counter] = SPI1Data[counter];
+						 NoMessage4[counter] = 1;
+						 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[counter];
+						 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[counter];
+					 }//End if
+					 else {
+						 SPI1_Tx_Data[counter] = SPI1Data[counter];
+						 NoMessage4[counter] = 0; //This isn't necessary
+						 SPI1_Tx_SegmentSelect[counter] = SegmentSelectSPI1[counter];
+						 SPI1_Tx_SegmentData[counter] = SegmentDataSPI1[counter];
+					 }// end else
+				 } //End for
+				 break;
+			 default:
+				 MsgError = 1;
+				 TxMsgNum = 1;
+				 TxSPI1Msg = 1;
+			 } //End get data switch
+
+			 TxSPI1Msg = 1; //A message is going to be sent
+			 TxMsgNum = 0x03; //It's message 3
+			 CurrentDataTx = 0; //You haven't Tx'd anything yet
+			 break;
+		 case 5:
+			 SPI1_PUSHR_SLAVE = TxCRC; // Tx the CRC
+			 break; //Bits 15-8 are not used
+		 }
+	 } //End else if
+
+	 else { //CRC Received
+		 SPI1TxData = 0; //Reset this
+		 SPI1RxByteCount = 0; //Reset for the next cycle
+
+		 RxCRC = (SPI1_POPR & 0xFF); //Get it from the buffer
+
+		 TempCRCData = (SPI1RxData << 8) | (RxCRC); //Put it in a data buffer
+		 TempCRC = CRC << 16; //Shift it over
+
+		 for (int counter = 23; counter >= 7; counter--) { //Calculate the CRC
+			 CRCExponential = pow(2, counter);
+			 if ((TempCRCData & CRCExponential) != 0) {
+				 TempCRCData = TempCRC ^ TempCRCData;
+			 }
+			 TempCRC = TempCRC >> 1;
+		 }
+		 
+		 if (TempCRCData != 0) { //CRC Failure
+			 TxSPI1Msg = 1;
+			 TxMsgNum = 1;
+			 MsgError = 1;
+		 }
+
+		 if (ResetSPI1Bus) { //Reset the bus
+			 Init_DAQCS_SPI();//Reset the bus
+		 }
+
+		 else { //Don't reset the bus
+			 if (TxSPI1Msg) {//Do you have to transmit on the next cycle?
+				 switch (TxMsgNum) {
+				 case 1:
+					 SPI1TxData = ((TxMsgNum << 12) & 0xF000);
+
+					 if (MsgError) {
+						 SPI1TxData |= 0x20;
+						 ResetSPI1Bus = 1;
+					 }
+
+					 TxSPI1Msg = 0;
+					 break;
+				 
+				 case 3:
+					 SPI1TxData = ((0xF000 & (TxMsgNum << 12)) | ((SPI1_Tx_SegmentSelect[CurrentDataTx] << 9) & 0x0E00) | ((SPI1_Tx_SegmentData[CurrentDataTx] << 5) & 0x00E0));
+
+					 if (NoMessage4[CurrentDataTx]) { //No message four?
+						 SPI1TxData |= ((0x100)|((SPI1_Tx_Data[CurrentDataTx] << 4) & 0x10));
+					 }
+					 
+					 else { //Yes message four
+						 SPI1TxData |= (0x000F & (SPI1_Tx_Data[CurrentDataTx] >> 12));
+					 }
+
+					 if ((NoMessage4[CurrentDataTx]) && ((CurrentDataTx + 1) == TotalDataPiecesTx)) { //Do you not need a message 4, and is this your last message
+						 TxSPI1Msg = 0;
+					 }
+					 else if (!NoMessage4[CurrentDataTx]) { //Next Message is 4
+						 TxMsgNum = 4; //Set it up to Tx 4 on the next loop
+					 }
+					 NoMessage4[CurrentDataTx] = 0; //Reset this bit
+					 
+					 break;
+				 case 4:
+					 SPI1TxData = (((TxMsgNum << 12) & 0xF000) | (SPI1_Tx_Data[CurrentDataTx] & 0x0FFF));
+
+					 CurrentDataTx++;
+					 if (CurrentDataTx < TotalDataPiecesTx) {
+						 TxMsgNum = 3;
+					 }
+					 else {
+						 TxSPI1Msg = 0;
+					 }
+					 break;
+				 default:
+					 SPI1TxData = (((TxMsgNum << 12) & 0xF000) | 0x20); //Something went wrong, reset the bus
+					 ResetSPI1Bus = 1;
+					 break;
+				 } //End Tx Msg Switch
+
+
+				 TempCRCData = SPI1TxData << 8; //Put it in a data buffer
+				 TempCRC = CRC << 16; //Shift it over
+
+				 for (int counter = 23; counter >= 7; counter--) { //Calculate the CRC
+					 CRCExponential = pow(2, counter);
+					 if ((TempCRCData & CRCExponential) != 0) {
+						 TempCRCData = TempCRC ^ TempCRCData;
+					 }
+					 TempCRC = TempCRC >> 1;
+				 }
+
+				 TxCRC = TempCRCData;
+				 
+				 SPI0_PUSHR_SLAVE = ((SPI1TxData >> 8) & 0xFF); //Tx First Byte
+			 } //End Tx if
+		 } //end not reseting the bus else.
+	 } //End third byte else
+ }
