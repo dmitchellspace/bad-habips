@@ -5,32 +5,35 @@
 #include "SDCard.h"
 #include <SD.h>
 #include "Clocks.h"
-#include <string>
+#include <EEPROM.h>
+#include "GPIO.h"
+
+//Define File Names
+//const char* SDFileName[48] = { "HABIP0.csv", "HABIP1.csv", "HABIP2.csv", "HABIP3.csv", "HABIP4.csv", "HABIP5.csv", "HABIP6.csv", "HABIP7.csv", "HABIP8.csv", "HABIP9.csv", "HABIP10.csv", "HABIP11.csv", "HABIP12.csv", "HABIP13.csv", "HABIP14.csv", "HABIP15.csv", "HABIP16.csv", "HABIP17.csv", "HABIP18.csv", "HABIP19.csv", "HABIP20.csv", "HABIP21.csv", "HABIP22.csv", "HABIP23.csv", "HABIP24.csv", "HABIP25.csv", "HABIP26.csv", "HABIP27.csv", "HABIP28.csv", "HABIP29.csv", "HABIP30.csv", "HABIP31.csv", "HABIP32.csv", "HABIP33.csv", "HABIP34.csv", "HABIP35.csv", "HABIP36.csv", "HABIP37.csv", "HABIP38.csv", "HABIP39.csv", "HABIP40.csv", "HABIP41.csv", "HABIP42.csv", "HABIP43.csv", "HABIP44.csv", "HABIP45.csv", "HABIP46.csv", "HABIP47.csv" };
+const char* SDFileName[48] = { "H0","H1","H2","H3","H4","H5","H6","H7","H8","H9","H10","H11","H12","H13","H14","H15","H16","H17","H18","H19","H20","H21","H22","H23","H24","H25","H26","H27","H28","H29","H30","H31","H32","H33","H34","H35","H36","H37","H38","H39","H40","H41","H42","H43","H44","H45","H46","H47"};
 
 const int chipSelect = BUILTIN_SDCARD;
 File SDFile;
 int SDCardPresent; //Is the SD Card Present?
-const char* SDFileName = "HAPIB.csv";
 bool MotorOn = 0;
+byte FileNumber;
+int FileNumberMemoryLocation = 12; //This is used to store the file number in EEPROM
 
 void SDCard_Setup() { //Initiliaze SD Card
 	if (!SD.begin(chipSelect)) { //Check if SD Card Is present
 		Serial.println("SD Card failed, or Not Present"); //It is not
+		FaultMatrix[7] = 1;
 		SDCardPresent = 0; //SD Card Failed
 	}
-	else {
-		//Set up New File
-		if (SD.exists(SDFileName)) {
-			//DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
-			SD.remove(SDFileName); //This deletes what is currently on the card
-			//DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
-		}
+	else { //Set up New File
+		//FileNumber = EEPROM.read(FileNumberMemoryLocation); DEBUG DEBUG DEBUG  UNCOMMENT THIS FOR LAUNCH
+		FileNumber = -1; //TODO Change this to EEPROM Read for Launch
 		NewSDFile();
 	}
 }
 
 void SDCard_Write(int SDCardData, byte Timestamp) {
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Open the file to write
 	if (Timestamp == 1) {
 		GetClock(); //Get Current RTC
 		SDFile.print(RTCCurrentData[2]); //Hours
@@ -46,20 +49,29 @@ void SDCard_Write(int SDCardData, byte Timestamp) {
 }
 
 void SDCard_NewLine() { //Add a new line to the SD Card
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Open the file to write
 	SDFile.println();
 	SDFile.close(); //Close SD File
 }
 
 void SDCard_SensorFailure(byte ErrorCode) {
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Open the file to write
 	switch (ErrorCode)
 		case 0: Serial.println("SPI0 Timeout. Last Line of Data is not Valid");
 	SDFile.close();
 }
 
 void NewSDFile() {
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Creates a new file
+		FileNumber++; //Increment to next file
+		EEPROM.write(FileNumberMemoryLocation, FileNumber); //Write the File number to memory
+
+		if (SD.exists(SDFileName[FileNumber])) { //DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
+			//DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
+			SD.remove(SDFileName[FileNumber]); //This deletes what is currently on the card
+											   //DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
+		}
+
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Creates a new file
 	if (SDFile) {//Check to see if file is successfully opened
 		SDFile.print("HAPIB Flight "); //Put Header on SD Card File
 		GetClock();
@@ -68,9 +80,10 @@ void NewSDFile() {
 		SDFile.print(RTCCurrentData[3]); //Add day
 		SDFile.print("/");
 		SDFile.println(RTCCurrentData[5]); //Add year
-		Serial.println("SD Card initialized, HAPIB.txt created"); //Success
+		Serial.print("SD Card initialized, HAPIB.csv created.  File Number: "); //Success
+		Serial.println(FileNumber + 1);
 		SDCardPresent = 1; //SD Card Passed
-		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure"); //TODO Make sure to add rest of sensors
+		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure,S1,S2,S3,S4,S5,S5,M1,M2,M3,M_Current,LDO_Current");
 	}
 	else {
 		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed
@@ -90,7 +103,7 @@ All of the following functions are used for that purpose:
 */
 
 void SDCardOpenFile() {
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Open the file to write
 	if (digitalRead(PIN_A6)) {
 		SDFile.println("Motor Turned On");
 		MotorOn = 1;
@@ -132,7 +145,7 @@ void SDCard_CalibrationDataWrite(unsigned short Cal1, signed short Cal2, signed 
 	// If the calibration data being written is temperature, the "Temp" bit shall be set to 1, and only the first 3 Cal Data will be 
 	// used.  If the Temp bit is not set, all 9 will be used.
 
-	SDFile = SD.open(SDFileName, FILE_WRITE); //Creates a new file
+	SDFile = SD.open(SDFileName[FileNumber], FILE_WRITE); //Creates a new file
 
 	if (Temp) { //Temperature Data
 		SDFile.print(",");

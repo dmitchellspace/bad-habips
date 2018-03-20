@@ -5,11 +5,13 @@
 #include <TimeLib.h>
 #include <DS1307RTC.h>  // a basic DS1307 library that returns time as a time_t
 
-const int hours = 0, minutes = 0, seconds = 0, date = 27,  mnth = 1, yr = 2018; //Used For Real Time Clock
+const int hours = 0, minutes = 0, seconds = 0, date = 22,  mnth = 2, yr = 2018; //Used For Real Time Clock
 int RTCCurrentData[6]; //Goes from small to big ie: [0] = seconds [5] = yr
 
-void Init_RTC() { //TODO Look at adding code to check if the RTC was already set up (ie. The Teensy lost power but the RTC did not)
-	setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
+void Init_RTC() {
+	if (timeStatus() != timeSet) { //Did the teensy reset, but the RTC retain power?
+		setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
+	}
 
 	if (timeStatus() == timeSet) { //Check if RTC was successfully setup
 		Serial.println("RTC Successfully Initialized"); //It was

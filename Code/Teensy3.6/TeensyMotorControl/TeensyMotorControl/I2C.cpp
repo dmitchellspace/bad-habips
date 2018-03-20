@@ -4,6 +4,7 @@
 
 #include "I2C.h"
 #include "SDCard.h"
+#include "GPIO.h"
 
 // Temp Pressure Sensor Data
 
@@ -24,6 +25,14 @@ const byte TempPressureSelfTestRegister = 0xD0, TempPressureSelfTestData = 0x60,
 const byte TemperatureSettingsRegister = 0xF5, TemperatureEnableData = 0xB7, TemperatureSettingsData = 0x80, TempCalRegister = 0x88;
 const byte PressCalReg1 = 0x8E, PressCalReg2 = 0x94, PressCalReg3 = 0x9A;
 const int BitBangDelay = 4; //122kHz signal
+
+//Current Sensor Registers and data
+const byte CurrentSensorAddress = 0x6F;
+const byte CurrentCtrlReg = 0x00, CurrentADCConfigReg = 0x04, CurrentSensorLDO = 0x46, CurrentSensorMainBattery = 0x14, CurrentSelfTestReg = 0xE8;
+const byte CurrentCtrlData = 0x08, CurrentADCConfigData = 0x80, CurrentSelfTestResult = 0x62;
+const byte CurrentSensorNumBytes = 1;
+//End of current stuff
+
 byte I2CRxData[6];
 unsigned short TCal1;
 signed short TCal2, TCal3;
@@ -36,15 +45,21 @@ void Init_I2C() { //Initialize
 	GPIOA_PDDR |= 0x3000; //Set up the pins as outputs
 	GPIOA_PSOR |= 0x3000; //Set up the outputs as high
 	Serial.println("I2C Successfully Initalized");
-	TempPressureRead(1, TempPressureAddress, TempPressureSelfTestRegister);
+	
+	InitTempPressure(); //Initialize the temperature and pressure
+	InitCurrentSensor(); //Initialize the current
+}
 
-	if(I2CRxData[5] == TempPressureSelfTestData){
+void InitTempPressure() {
+	I2CRead(1, TempPressureAddress, TempPressureSelfTestRegister);
+
+	if (I2CRxData[5] == TempPressureSelfTestData) {
 
 		Serial.println("Temperature/Pressure Sensor Successfully Initialize");
 
-		TempPressureWrite(TempPressureAddress, TemperatureEnableRegister, TemperatureEnableData); //Enable the Sensor
-		TempPressureWrite(TempPressureAddress, TemperatureSettingsRegister, TemperatureSettingsData); //Setting to sample every 0.5s
-		TempPressureRead(6, TempPressureAddress, TempCalRegister); //Get Temparature Cal Data
+		I2CWrite(TempPressureAddress, TemperatureEnableRegister, TemperatureEnableData); //Enable the Sensor
+		I2CWrite(TempPressureAddress, TemperatureSettingsRegister, TemperatureSettingsData); //Setting to sample every 0.5s
+		I2CRead(6, TempPressureAddress, TempCalRegister); //Get Temparature Cal Data
 
 		TCal1 = I2CRxData[4]; //Parse the data
 		TCal1 = ((TCal1 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
@@ -53,7 +68,7 @@ void Init_I2C() { //Initialize
 		TCal3 = I2CRxData[0]; //Parse the data
 		TCal3 = ((TCal3 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
 
-		TempPressureRead(6, TempPressureAddress, PressCalReg1); //First group of Pressure Measurements
+		I2CRead(6, TempPressureAddress, PressCalReg1); //First group of Pressure Measurements
 		PCal1 = I2CRxData[4]; //Parse the data
 		PCal1 = ((PCal1 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
 		PCal2 = I2CRxData[2]; //Parse the data
@@ -61,7 +76,7 @@ void Init_I2C() { //Initialize
 		PCal3 = I2CRxData[0]; //Parse the data
 		PCal3 = ((PCal3 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
 
-		TempPressureRead(6, TempPressureAddress, PressCalReg2); //Second group of data
+		I2CRead(6, TempPressureAddress, PressCalReg2); //Second group of data
 		PCal4 = I2CRxData[4]; //Parse the data
 		PCal4 = ((PCal4 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
 		PCal5 = I2CRxData[2]; //Parse the data
@@ -69,7 +84,7 @@ void Init_I2C() { //Initialize
 		PCal6 = I2CRxData[0]; //Parse the data
 		PCal6 = ((PCal6 << 8) & 0xFF00) | I2CRxData[1]; //Parse the data
 
-		TempPressureRead(6, TempPressureAddress, PressCalReg3); //Third group of data
+		I2CRead(6, TempPressureAddress, PressCalReg3); //Third group of data
 		PCal7 = I2CRxData[4]; //Parse the data
 		PCal7 = ((PCal7 << 8) & 0xFF00) | I2CRxData[5]; //Parse the data
 		PCal8 = I2CRxData[2]; //Parse the data
@@ -83,10 +98,25 @@ void Init_I2C() { //Initialize
 
 	else {
 		Serial.println("Temperature/Pressure Sensor Failed To Initialize");
+		FaultMatrix[4] = 1;
 	}
 }
 
-void TempPressureWrite(byte I2CAddress, byte I2CRegister, byte TxData) {
+void InitCurrentSensor() {
+	I2CWrite(CurrentSensorAddress, CurrentADCConfigReg, CurrentADCConfigData); //set up ADC for 8 bit resolution.  This is done for speed
+	I2CWrite(CurrentSensorAddress, CurrentCtrlReg, CurrentCtrlData); //Set it up for continuous mode
+
+	I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSelfTestReg); //Read from the ID register
+	if (I2CRxData[5] == CurrentSelfTestResult) {
+		Serial.println("Current Sensor Successfully Initialized.");
+	}
+	else {
+		Serial.println("Current Sensor Failed To Initialize.");
+		FaultMatrix[0] = 1; //Set the entry in the Fault Matrix
+	}
+}
+
+void I2CWrite(byte I2CAddress, byte I2CRegister, byte TxData) {
 	//A write to the temperature/pressure sensor requires three seperate writes.  The first is the I2C Address, the second is the register number,
 	//and the third is the data.
 
@@ -191,7 +221,7 @@ void TempPressureWrite(byte I2CAddress, byte I2CRegister, byte TxData) {
 	GPIOA_PSOR |= 0x2000; // Stop Bit
 }
 
-void TempPressureRead(byte NumBytesRx, byte I2CAddress, byte I2CRegister) {
+void I2CRead(byte NumBytesRx, byte I2CAddress, byte I2CRegister) {
 	//The process to perform a read is to write the address in write mode along with the register being read from.  Then the start bit is sent a second time
 	// the address with a read bit, and then the data will be returned.
 
