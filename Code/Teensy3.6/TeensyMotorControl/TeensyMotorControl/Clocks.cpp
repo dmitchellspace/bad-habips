@@ -5,7 +5,7 @@
 #include <TimeLib.h>
 #include <DS1307RTC.h>  // a basic DS1307 library that returns time as a time_t
 
-const int hours = 0, minutes = 0, seconds = 0, date = 22,  mnth = 2, yr = 2018; //Used For Real Time Clock
+const int hours = 0, minutes = 0, seconds = 0, date = 14,  mnth = 3, yr = 2018; //Used For Real Time Clock
 int RTCCurrentData[6]; //Goes from small to big ie: [0] = seconds [5] = yr
 
 void Init_RTC() {

@@ -153,6 +153,20 @@ Version 16:
 	Messages are parsed and data is formatted to be sent out.  Everything is done inside the ISR, because a request from the MSP430 can come at any point in time.
 	This was tested using a test bench constructed in a seperate Visual Studio file.  The MSP430 code has not yet been written, and so this was the only method to test.
 	The functionality of the algorithim was verified, but the functonality of the SPI slave configuration cannot be verified until the MSP430 code has been written.
+Version 17:
+	Uploaded on 03/21/2018
+	Changed the way SD files are named.  const_cast<char*> is now used to convert from a char* to a const char*, that way the file name can be created on the fly.
+	The new format of file names are hhmmss.csv.  This works as a timestamp
+	According to the schematic the addresss should be 6F because both pins should be grounded.  It seems like one of the pins is actually not connected, and so the 
+	address is actually 0x6E.  If the pin is properly grounded the address should be changed back to 0x6F.
+	Updated so that IMU1 is the default IMU (the one that's centered around the motor) and if it fails then IMU0 is used.
+	A retry was added on the calibration because sometimes on come up the data comes back corrupted.  Five retries were added with a 50ms delay in between each retry.
+	It seems that when the IMU goes from cold to running, the data comes back corrupted on the first attempt.  These short delays seem enough where only a single retry 
+	is neccessary to get a good calibration measurement.  The five retries are in there in order for some wiggle room.
+	The way that the batteries are handled is being slightly changed. During testing it was found that there was a lot of noise on the individual cell lines.  After talking
+	to Carlos it was detemined that this cannot be avoided (he seemed surprised we were only having 150mV on each line, and not more).  His recomendation was to only read the
+	rail voltage and to make the determination based off of that.  So all the cells are still being read and written to the SD card, but to determine if the battery should be
+	turned on or off just the rail voltage is used.  It is also changed so that 10 consecutive good or bad readings need to happen in order for the battery to be turned on or off.
 	*/
 
 //Start Variable Declaration
@@ -214,7 +228,7 @@ void setup() { //Only runs once upon powering up the board
 	delay(1000); //Put in a 1 secon delay so that everything has time to come up.
 	Serial.begin(9600); //Set Up Serial Interface
 	//DEBUG
-	while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT 
+	//while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT 
 	//RESPONDS MAKE SURE TO TAKE OUT
 	//DEBUG
 	BootTime = millis();
@@ -228,11 +242,33 @@ void setup() { //Only runs once upon powering up the board
 	Init1SecTimer(); //Init Timer to trigger an interrupt every 1 second
 
 	if (!digitalRead(PIN_A4)) { //This checks the IMU calibration button.  THE BUTTON NEEDS TO BE HELD ON STARTUP IN ORDER FOR THE CALIBRATION TO TAKE PLACE
+		int CalCounter = 0;
 		XCalibrationData = XCalibration(); //Perform a cal
+		CalCounter++;
+
+		//This retry was added because sometimes on come up the data comes back corrupted.  The delay seems to fix it.
+		while (((XCalibrationData > 20) || (XCalibrationData < -20)) && (CalCounter < 5)) {
+			delay(50);
+			XCalibrationData = XCalibration(); //Perform a cal
+			CalCounter++;
+		}
+
 		YCalibrationData = YCalibration(); //Perform a cal
-		
+		CalCounter = 1;
+		while (((YCalibrationData > 20) || (YCalibrationData < -20)) && (CalCounter < 5)) {
+			delay(50);
+			YCalibrationData = YCalibration(); //Perform a cal
+			CalCounter++;
+		}
+
 		ZCalibrationData = ZCalibration(); //Perform a cal
-		
+		CalCounter = 1;
+		while (((ZCalibrationData > 20) || (ZCalibrationData < -20)) && (CalCounter < 5)) {
+			delay(50);
+			ZCalibrationData = ZCalibration(); //Perform a cal
+			CalCounter++;
+		}
+
 		if (IMUSelect == IMU0) { //Write to the first block of memory
 			CalibrationDataWrite(XCalibrationData, XCalibrationMemoryLocation); //Write the data to flash
 			CalibrationDataWrite(YCalibrationData, YCalibrationMemoryLocation); //Write the data to flash
@@ -268,27 +304,27 @@ void setup() { //Only runs once upon powering up the board
 		}
 	}
 
-	delay(1000);
+	//delay(1000);
 
-	/*
-	This delay is here so that the user has enough time to make the adjustment to go from the calibration scan to the restart file system scan.
-	In order to begin the IMU calibration sequence the user should hold the button right at startup.  To restart the file system, the user
-	should hold the button once they are prompted to do by the LEDs.
-	*/
+	///*
+	//This delay is here so that the user has enough time to make the adjustment to go from the calibration scan to the restart file system scan.
+	//In order to begin the IMU calibration sequence the user should hold the button right at startup.  To restart the file system, the user
+	//should hold the button once they are prompted to do by the LEDs.
+	//*/
 
-	for (int counter = 0; counter <= 10; counter++) { //This runs for ~4 seconds
+	//for (int counter = 0; counter <= 10; counter++) { //This runs for ~4 seconds
 
-			GPIOC_PTOR ^= 0x20;
-			delay(200);
-			GPIOC_PTOR ^= 0x20;
-			delay(200);
+	//		GPIOC_PTOR ^= 0x20;
+	//		delay(200);
+	//		GPIOC_PTOR ^= 0x20;
+	//		delay(200);
 
-		if (!digitalRead(PIN_A4)) { //The button should be held once the LED starts blinking in order for the sequence to start
-			FileNumber = -1; //Reinitialize the file number
-			NewSDFile(); //Recreate the first file
-			break;
-		}
-	}
+	//	if (!digitalRead(PIN_A4)) { //The button should be held once the LED starts blinking in order for the sequence to start
+	//		FileNumber = -1; //Reinitialize the file number
+	//		NewSDFile(); //Recreate the first file
+	//		break;
+	//	}
+	//}
 
 	SelfTestDisplayResults(); //Display the results on the red LED
 
@@ -298,7 +334,6 @@ void setup() { //Only runs once upon powering up the board
 	
 }
 
-// the loop function runs over and over again until power down or reset
 void loop() {//Main Loop
 	if (!digitalRead(PIN_A6)) {//Check to see if motor should be turned on
 		CollectData();
@@ -376,20 +411,8 @@ void CollectData() {
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
 				SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off last four bits
 
-				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
-				MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
-				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorLDO);
-				LDO_Current = I2CRxData[5]; //Get the LDO Current from the buffer
-
-				SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
-				SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
-
-				SPI1Data[SPIMainCurrent] = MainCurrent;
-				SPI1Data[SPIMotorCurrent] = LDO_Current;
-
 
 				if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
-					
 					for (int counter = 0; counter < 9; counter++) {
 						SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
 					}
@@ -402,6 +425,17 @@ void CollectData() {
 					ADC1_Select = 0; //Reset the cycle
 					BeginADCConversion(); //Kick off the conversions
 				} //End ADC if
+
+				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
+				MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
+				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorLDO);
+				LDO_Current = I2CRxData[5]; //Get the LDO Current from the buffer
+
+				SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
+				SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
+
+				SPI1Data[SPIMainCurrent] = MainCurrent;
+				SPI1Data[SPIMotorCurrent] = LDO_Current;
 
 				SDCardCloseFile();
 			} //End Pressure Temperature if
@@ -436,6 +470,7 @@ void ReactionWheelOn() {
 	double ki = -0.2; //For algorithim
 	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
 
+	Serial.println("Motor Turned On");
 	SPI1Data[SPIMotorEnable] = 1;
 
 	SDCardOpenFile(); //Open the file for the duration of the motor being turned on
@@ -556,7 +591,7 @@ void ReactionWheelOn() {
 
 	TurnMotorOff(); //Disable the motor
 	SDCardCloseFile(); //Close the SD Card File
-
+	Serial.println("Motor Turned Off");
 } //End ReactionWheelOn
 
 void Heartbeat() {
@@ -618,9 +653,7 @@ short CalibrationDataRead(int Address) {
  void ftm0_isr() { //1 Second Timer
 	FTM0_SC &= ~0x80; //Clear the flag
 	PressTempFlag = 1;
-	if (FileNumber < 48) { //If its the last file you dont want to increment this anymore
-		CurrentNumSeconds++;
-	}
+	CurrentNumSeconds++;
 }
 
  void spi1_isr() {

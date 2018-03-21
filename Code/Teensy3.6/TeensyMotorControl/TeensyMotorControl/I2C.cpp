@@ -20,14 +20,19 @@ In order to make this as efficient as possible none of the arduino libaries are 
 going to be done via register writes in order to make it run as quickly as possible.
 */ 
 
-const byte TempPressureAddress = 0x77, TempPressureStartRegister = 0xF7, TempPressureNumRegisters = 6;
+const byte TempPressureAddress = 0x76, TempPressureStartRegister = 0xF7, TempPressureNumRegisters = 6;
 const byte TempPressureSelfTestRegister = 0xD0, TempPressureSelfTestData = 0x60, TemperatureEnableRegister = 0xF4;
 const byte TemperatureSettingsRegister = 0xF5, TemperatureEnableData = 0xB7, TemperatureSettingsData = 0x80, TempCalRegister = 0x88;
 const byte PressCalReg1 = 0x8E, PressCalReg2 = 0x94, PressCalReg3 = 0x9A;
 const int BitBangDelay = 4; //122kHz signal
 
 //Current Sensor Registers and data
-const byte CurrentSensorAddress = 0x6F;
+//const byte CurrentSensorAddress = 0x6F;
+//According to the schematic the addresss should be 6F because both pins should be grounded.  It seems like one of the pins is actually not 
+//connected (thanks to Dan screwing it up), and so the address is actually 0x6E.  If the pin is properly grounded the address should be changed 
+//back to 0x6F.
+
+const byte CurrentSensorAddress = 0x6E;
 const byte CurrentCtrlReg = 0x00, CurrentADCConfigReg = 0x04, CurrentSensorLDO = 0x46, CurrentSensorMainBattery = 0x14, CurrentSelfTestReg = 0xE8;
 const byte CurrentCtrlData = 0x08, CurrentADCConfigData = 0x80, CurrentSelfTestResult = 0x62;
 const byte CurrentSensorNumBytes = 1;
@@ -103,8 +108,6 @@ void InitTempPressure() {
 }
 
 void InitCurrentSensor() {
-	I2CWrite(CurrentSensorAddress, CurrentADCConfigReg, CurrentADCConfigData); //set up ADC for 8 bit resolution.  This is done for speed
-	I2CWrite(CurrentSensorAddress, CurrentCtrlReg, CurrentCtrlData); //Set it up for continuous mode
 
 	I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSelfTestReg); //Read from the ID register
 	if (I2CRxData[5] == CurrentSelfTestResult) {
@@ -114,6 +117,8 @@ void InitCurrentSensor() {
 		Serial.println("Current Sensor Failed To Initialize.");
 		FaultMatrix[0] = 1; //Set the entry in the Fault Matrix
 	}
+	I2CWrite(CurrentSensorAddress, CurrentADCConfigReg, CurrentADCConfigData); //set up ADC for 8 bit resolution.  This is done for speed
+	I2CWrite(CurrentSensorAddress, CurrentCtrlReg, CurrentCtrlData); //Set it up for continuous mode
 }
 
 void I2CWrite(byte I2CAddress, byte I2CRegister, byte TxData) {

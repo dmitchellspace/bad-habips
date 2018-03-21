@@ -19,12 +19,14 @@ const int ADC0_ChSelect[3] = { 0x11, 0x12, 0x17 };
 const int ADC1_ChSelect[6] = { 0x04, 0x05, 0x06, 0x07, 0x11, 0x17 };
 int ADC0_Select = 0, ADC1_Select = 0;
 int ADCData[9]; //This array is [S1 S2 S3 S4 S5 S6 M1 M2 M3].  This is what gets written to the SD Card
-float BatteryCheckData[9], RunningMainVoltage, RunningMotorVoltage;
 
 //The battery divider values are taken from the resistors used to scale down the voltages coming back from the board
-const float BatteryDivider[9] = { 0.59523, 0.29752, 0.19844, 0.148766, 0.11841, 0.09921, 0.59523, 0.29752, 0.19844 };
+const float BatteryDivider[9] = { 0.59523, 0.29752, 0.19844, 0.148766, 0.11841, 0.09921, 0.59524, 0.29752, 0.19806 }; // [S1 S2 S3 S4 S5 S6 M1 M2 M3]
 const float ADC_LSB = 0.00005035400390625; //3.3V scale, 16 bit resolution
 bool MainBatteryBad, MotorBatteryBad;
+const double MainCutoffVoltage = 9.9, MotorCutoffVoltage = 19.8; //This is 3.3V x 3Cells and 3.3V x 6Cells
+const byte MotorRail = 5, MainRail = 8; //Location in the array
+byte MainBadMeasurements = 0, MainGoodMeasurements = 0, MotorBadMeasurements = 0, MotorGoodMeasurements = 0; //Consecutive number of good/bad measurements
 
 void Init_MotorInterface() {
 	pinMode(MotorControl_Input, INPUT);//Set up Pin 20 to Input to Control Turning on Motor from Host MSP430
@@ -42,7 +44,7 @@ void Init_MotorInterface() {
 }
 
 void Init_ADC() {
-	short CalData;
+	unsigned short CalData;
 	//Initliaze ADC0
 	pinMode(Backup_Batt_En, OUTPUT);
 	digitalWrite(Backup_Batt_En, HIGH); //Init the backup as on
@@ -55,17 +57,10 @@ void Init_ADC() {
 		CalData = CalData / 2;
 		CalData |= 0x8000;
 		ADC0_PG = CalData;
-		CalData = ADC0_CLM0 + ADC0_CLM1 + ADC0_CLM2 + ADC0_CLM3 + ADC0_CLM4 + ADC0_CLMS;
-		CalData = CalData / 2;
-		CalData |= 0x8000;
-		ADC0_MG = CalData;
-		ADC0_CFG1 = 0x0C; //Sets up 16 bit Resolution
-		ADC0_CFG2 = 0x00;
-		ADC0_SC2 = 0x00; //Set Reference to VREFH = 2.5V and VREFL = 0V
-		ADC0_SC3 = 0x05; //Set up averaging
 		Serial.println("ADC0 Successfully Initialized");
 	}
 	else {
+		Serial.println(ADC0_SC3);
 		Serial.println("ADC0 Failed to Initialize");
 		FaultMatrix[1] = 1;
 	}
@@ -76,14 +71,6 @@ void Init_ADC() {
 		CalData = CalData / 2;
 		CalData |= 0x8000;
 		ADC1_PG = CalData;
-		CalData = ADC1_CLM0 + ADC1_CLM1 + ADC1_CLM2 + ADC1_CLM3 + ADC1_CLM4 + ADC1_CLMS;
-		CalData = CalData / 2;
-		CalData |= 0x8000;
-		ADC1_MG = CalData;
-		ADC1_CFG1 = 0x0C; //Sets up 16 bit Resolution
-		ADC0_CFG2 = 0x10; //Set up pin set b
-		ADC1_SC2 = 0x00; //Set Reference to VREFH = 2.5V and VREFL = 0V
-		ADC1_SC3 = 0x05; //Set up averaging
 		Serial.println("ADC1 Successfully Initialized");
 	}
 	else {
@@ -127,53 +114,62 @@ void BeginADCConversion() {
 
 void ADC_Calibration() {
 	SIM_SCGC6 |= 0x8000000; //Enable Module
-	ADC0_SC3 = 0xC0; //Begins ADC0 Calibration
+	ADC0_CFG1 = 0x0C; //Sets up 16 bit Resolution
+	ADC0_CFG2 = 0x10;
+	ADC0_SC2 = 0x00; //Set Reference to VREFH = 3.3V and VREFL = 0V
+	ADC0_SC3 = 0x07; //Set up averaging
+	ADC0_SC3 |= 0xC0; //Begins ADC0 Calibration
 	SIM_SCGC3 |= 0x8000000; //Enable Module
-	ADC1_SC3 = 0xC0; //Begins ADC0 Calibration
+	ADC1_CFG1 = 0x0C; //Sets up 16 bit Resolution
+	ADC1_CFG2 = 0x10; //Set up pin set B
+	ADC1_SC2 = 0x00; //Set Reference to VREFH = 3.3V and VREFL = 0V
+	ADC1_SC3 = 0x07; //Set up averaging
+	ADC1_SC3 |= 0xC0; //Begins ADC1 Calibration
 }
 
 void CheckBatteryLevel() {
-	RunningMainVoltage = 0; //Reset this to 0
-	RunningMotorVoltage = 0; //Reset this to 0
-	MainBatteryBad = 0; //Reset this to 0
-	MotorBatteryBad = 0; //Reset this to 0
+	const byte ConsecutiveBatteryReading = 10; //You want 10 straight readings before you turn a battery on/off
 
-	for (int counter = 0; counter < 6; counter++) { //Loop for the Motor battery
-		BatteryCheckData[counter] = ADCData[counter] * ADC_LSB; //Scale it to 3.3V
-		BatteryCheckData[counter] = (BatteryCheckData[counter] / BatteryDivider[counter]) - RunningMotorVoltage; //Calculate the voltage of the cell
-		RunningMotorVoltage = BatteryCheckData[counter] + RunningMotorVoltage;
-		if (BatteryCheckData[counter] < 3.3) { //Is it below the acceptable level?
-			MotorBatteryBad = 1; //Mark it as a fail
+		if(((ADCData[MotorRail] * ADC_LSB) / BatteryDivider[MotorRail]) < MotorCutoffVoltage){ //Is the rail below the acceptable level?
+			if (MotorBadMeasurements < ConsecutiveBatteryReading) {
+				MotorBadMeasurements++;
+				MotorGoodMeasurements = 0;
+			}
+			else {
+				//digitalWrite(MotorEnable, LOW); //Turn off the motor
+				//TODO DEBUG PUT THIS BACK IN
+			}
+		} //End Bad if
+
+		else {// Main Battery is good
+			MotorBadMeasurements = 0;
+			MotorGoodMeasurements++;
+		}
+
+		if(((ADCData[MainRail] * ADC_LSB) / BatteryDivider[MainRail]) < MainCutoffVoltage){ //Is it bad?
+			if (MainBadMeasurements < ConsecutiveBatteryReading) {
+				MainBadMeasurements++;
+				MainGoodMeasurements = 0;
+			}
+			else {
+				//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
+				digitalWrite(Backup_Batt_En, HIGH); //Enable Backup
+				digitalWrite(Main_Batt_En, LOW); //Disable Main
+			}
 		} //End if
-	} //End for
 
-	if (MotorBatteryBad) { //If it's bad turn the motor off
-		//digitalWrite(MotorEnable, LOW);
-		//DEBUG PUT THIS BACK IN
-	}
-
-	for (int counter = 6; counter < 9; counter++) { //Loop for the main battery
-		//Serial.println(ADCData[counter]);
-		BatteryCheckData[counter] = ADCData[counter] * ADC_LSB;
-		//Serial.println(BatteryCheckData[counter]);
-		BatteryCheckData[counter] = (BatteryCheckData[counter] * BatteryDivider[counter]) - RunningMainVoltage;
-		RunningMainVoltage = BatteryCheckData[counter] + RunningMainVoltage;
-
-		if (BatteryCheckData[counter] < 3.3) { //Is it below the acceptable level?
-			MainBatteryBad = 1; //Mark it as a fail
-		} //End if
-	} //End for
-
-	if (~MainBatteryBad) { //Turn on the backup battery and turn off the main battery
-		//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
-		digitalWrite(Main_Batt_En, HIGH);
-		digitalWrite(Backup_Batt_En, LOW);
-	}
-	else {
-		//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
-		digitalWrite(Backup_Batt_En, HIGH);
-		digitalWrite(Main_Batt_En, LOW);
-	}
+		else{ //Everything is good
+			if (MainGoodMeasurements < ConsecutiveBatteryReading) {//Need 10 good ones
+				MainGoodMeasurements++;
+				MainBadMeasurements = 0;
+			}
+			else { //You're main is good
+				//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
+				//digitalWrite(Main_Batt_En, HIGH); //Enable Main
+				//digitalWrite(Backup_Batt_En, LOW); //Disable Backup
+				//TODO DEBUG UNCOMMENT THESE LINES
+			}
+		} //End else
 
 }
 

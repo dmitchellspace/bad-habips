@@ -31,8 +31,8 @@ void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
 	PORTB_PCR17 |= 0x200; //Set up Pin 1 as MOSI
 	SIM_SCGC6 |= 0x2000; //Enable clock to SPI 1
 	SPI1_MCR = 0x000; // Disable the Module
-	SPI1_CTAR0_SLAVE = 0x3E000000; // Frame size of 8 (writes a 7 to the register), Inactive state of SCK is high, 
-								  // Data is changed on leading edge of SCK and captured on trailing edge
+	SPI1_CTAR0_SLAVE = 0x38000000; // Frame size of 8 (writes a 7 to the register), Inactive state of SCK is low, 
+								  // Data is captured on leading edge of SCK and changed on trailing edge
 	SPI1_RSER |= 0x80000000; //Enable interrupts on complete of transfer
 	NVIC_ISER0 |= 0x8000000; //Enable interrupts
 	SPI1_SR = 0xDA0A0000; // Clears all the FIFOs and flags
@@ -88,24 +88,24 @@ void IMUSelfTest() {
 
 	IMU_ST_Data = IMURead(IMU_ST_Address, 1, 0); //Test IMU0
 
-		if (IMU_ST_Data == IMU_ST_Result) {
-			Serial.println("IMU 0 Selftest Passed");
-			IMUSelect = IMU0;
-		}
-		else {
-			Serial.println("IMU 0 Selftest Failed");
-			FaultMatrix[5] = 1;
-			IMUSelect = IMU1;
-		}
+	if (IMU_ST_Data == IMU_ST_Result) {
+		Serial.println("IMU 0 Selftest Passed");
+	}
+	else {
+		Serial.println("IMU 0 Selftest Failed");
+		FaultMatrix[5] = 1;
+	}
 
 	IMU_ST_Data = IMURead(IMU_ST_Address, 1, 1); //Test IMU1
 
 	if (IMU_ST_Data == IMU_ST_Result) {
 		Serial.println("IMU 1 Selftest Passed");
+		IMUSelect = IMU1;
 	}
 	else {
 		Serial.println("IMU 1 Selftest Failed");
 		FaultMatrix[6] = 1;
+		IMUSelect = IMU0;
 	}
 
 	IMUWrite(EnableAccelAddress, EnableAccelData, 0); //Enable Accel on IMU0
