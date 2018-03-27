@@ -29,14 +29,19 @@ void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
 	PORTB_PCR16 |= 0x200; //Set up Pin 0 as MISO
 	pinMode(1, INPUT);
 	PORTB_PCR17 |= 0x200; //Set up Pin 1 as MOSI
+
 	SIM_SCGC6 |= 0x2000; //Enable clock to SPI 1
-	SPI1_MCR = 0x000; // Disable the Module
+	SPI1_MCR = 0x001; // Disable the Module
+	SPI1_SR = 0x000; //Clear the SR
+	SPI1_MCR |= 0x3F0C00; // Sets up SPI1 as a slave device.  Clears the buffer
+	SPI1_CTAR0 = 0x38000000; //You have to write it in both places, because of course you do...
 	SPI1_CTAR0_SLAVE = 0x38000000; // Frame size of 8 (writes a 7 to the register), Inactive state of SCK is low, 
 								  // Data is captured on leading edge of SCK and changed on trailing edge
 	SPI1_RSER |= 0x80000000; //Enable interrupts on complete of transfer
 	NVIC_ISER0 |= 0x8000000; //Enable interrupts
 	SPI1_SR = 0xDA0A0000; // Clears all the FIFOs and flags
-	SPI1_MCR = 0xC00; // Sets up SPI1 as a slave device.  Clears the buffer
+	SPI1_MCR |= 0x3F0000; // CS is active low
+	SPI1_MCR &= ~0x0001; //Clear the Halt bit
 	ResetSPI1Bus = 0; //Don't restart the bus
 	TxSPI1Msg = 0; //Don't transmit the next cycle
 	SPI1RxByteCount = 0; //You've Rx'd 0 bytes
@@ -93,6 +98,7 @@ void IMUSelfTest() {
 	}
 	else {
 		Serial.println("IMU 0 Selftest Failed");
+		Serial.println(IMU_ST_Data); //DEBUG
 		FaultMatrix[5] = 1;
 	}
 
@@ -104,6 +110,7 @@ void IMUSelfTest() {
 	}
 	else {
 		Serial.println("IMU 1 Selftest Failed");
+		Serial.println(IMU_ST_Data);
 		FaultMatrix[6] = 1;
 		IMUSelect = IMU0;
 	}

@@ -29,6 +29,10 @@ void Init_GPIO() {
 	Serial.println("GPIO Successfully Initialized");
 }
 
+void SetupTimerButton() { //
+	//PORTB_PCR3 |= 1090000; //Clear interrupt flag, enable interrupt on rising edge.
+}
+
 void SelfTestDisplayResults() {
 	if ((FaultMatrix[7]) || (FaultMatrix[5] && FaultMatrix[6])) { //Is there a hard failure?
 		digitalWrite(RedLED, HIGH);

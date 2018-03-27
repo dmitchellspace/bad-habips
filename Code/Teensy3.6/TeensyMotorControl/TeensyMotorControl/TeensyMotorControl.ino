@@ -167,6 +167,17 @@ Version 17:
 	to Carlos it was detemined that this cannot be avoided (he seemed surprised we were only having 150mV on each line, and not more).  His recomendation was to only read the
 	rail voltage and to make the determination based off of that.  So all the cells are still being read and written to the SD card, but to determine if the battery should be
 	turned on or off just the rail voltage is used.  It is also changed so that 10 consecutive good or bad readings need to happen in order for the battery to be turned on or off.
+Version 18:
+	Uploaded on 03/27/2018
+	A derivative was added to the controller, making it a PID instead of a PI.  The values are now kp = 120, ki = 0.2, kd = 0.01.  Testing with the current setup (Two PCBs the arduino 
+	board, the motor controller, motor and three batteries mounted to the chassis) has shown to be good.  The numbers might need to be adjusted again once everything is connected.
+	A delay was added after the write to the motor of 50ms.  It was found that writing too fast caused problems.  We were writing at a rate significantly faster than the mechanical time
+	constant, and this was giving issues.  Now with this delay everything seems happy.
+	The SPI is added but IT IS NOT WORKING.  The algorithim and logic was tested and is working but something with the configuration is not working.  Due to time constraints this will be
+	left as is.  If time permits this will be looked at, but for not it is not functioning.
+	A function was added to calculate the pressure on the board.  There is a very good chance that the communications board will not be working in time for the launch.  So Dr. Patru has requested
+	that everything is done locally. Part of this is to cut down at a certain alitude (40,000 ft + 3hrs).  This is approximated using pressure measurements.  So this function has been added.  
+	It has not been called yet, I'm meeting with Carlos tomorrow to discuss how we want to go about this.
 	*/
 
 //Start Variable Declaration
@@ -200,6 +211,7 @@ int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibration
 
 //This is used for Temperature and Pressure
 int PressureData, TemperatureData;
+bool AltitudeCutoff;
 
 //This is for the current sensor
 int LDO_Current, MainCurrent;
@@ -302,37 +314,17 @@ void setup() { //Only runs once upon powering up the board
 			ZCalibrationData = CalibrationDataRead(ZCalibrationMemoryLocation+6); //Get Z from flash
 			Serial.println("No Calibration Performed.  IMU1 taken from Memory");
 		}
-	}
-
-	//delay(1000);
-
-	///*
-	//This delay is here so that the user has enough time to make the adjustment to go from the calibration scan to the restart file system scan.
-	//In order to begin the IMU calibration sequence the user should hold the button right at startup.  To restart the file system, the user
-	//should hold the button once they are prompted to do by the LEDs.
-	//*/
-
-	//for (int counter = 0; counter <= 10; counter++) { //This runs for ~4 seconds
-
-	//		GPIOC_PTOR ^= 0x20;
-	//		delay(200);
-	//		GPIOC_PTOR ^= 0x20;
-	//		delay(200);
-
-	//	if (!digitalRead(PIN_A4)) { //The button should be held once the LED starts blinking in order for the sequence to start
-	//		FileNumber = -1; //Reinitialize the file number
-	//		NewSDFile(); //Recreate the first file
-	//		break;
-	//	}
-	//}
+	} //End no calibration else
 
 	SelfTestDisplayResults(); //Display the results on the red LED
+
+
 
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
 	
-}
+} //End of setup
 
 void loop() {//Main Loop
 	if (!digitalRead(PIN_A6)) {//Check to see if motor should be turned on
@@ -411,8 +403,6 @@ void CollectData() {
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
 				SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off last four bits
 
-
-				if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
 					for (int counter = 0; counter < 9; counter++) {
 						SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
 					}
@@ -424,7 +414,6 @@ void CollectData() {
 					ADC0_Select = 0; //Reset the cycle
 					ADC1_Select = 0; //Reset the cycle
 					BeginADCConversion(); //Kick off the conversions
-				} //End ADC if
 
 				I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
 				MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
@@ -465,9 +454,10 @@ void ReactionWheelOn() {
 	As a result the file will be opened once upon entering the loop, closed once upon leaving the loop, and the buffer will be cleared after all six of the IMU writes,
 	instead of after every individual write.  This should make each write take about 200us instead of about 3ms.
 	*/
-	double ZGyro_RawData, ZGyro_RPM = 0, Error, Integral = 0, Control_Speed;
-	double kp = 120; //For algorithim
-	double ki = -0.2; //For algorithim
+	double ZGyro_RawData, ZGyro_RPM = 0, Error, OldError = 0, Integral = 0, Control_Speed, Derivative = 0;
+	double kp = 140; //For algorithim
+	double ki = 0.2; //For algorithim
+	double kd = 0.01; //For algorithim
 	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
 
 	Serial.println("Motor Turned On");
@@ -475,8 +465,16 @@ void ReactionWheelOn() {
 
 	SDCardOpenFile(); //Open the file for the duration of the motor being turned on
 	TurnMotorOn(); //Enable the motor
+	digitalWrite(BlueLED, HIGH);
 
 	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
+
+		//Serial.print("SR: ");
+		//Serial.println(SPI1_SR); //DEBUG DEBUG DEBUG
+		//Serial.print("MCR: ");
+		//Serial.println(SPI1_MCR);
+		//SPI1_PUSHR_SLAVE = 0xAA; //DEBUG DEBUG DEBUG
+
 		XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 		SDCard_WriteMotorOn(XAccelData, Timestamp); //Write it to the SD Card
 		SPI1Data[SPIXAccel] = XAccelData;
@@ -516,8 +514,21 @@ void ReactionWheelOn() {
 			PressureData = I2CRxData[5];
 			PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
 			PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
+
 			SDCard_WriteMotorOn(PressureData, NoTimestamp); //Write to card
 			SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off the last four bits
+
+				for (int counter = 0; counter < 9; counter++) {
+					SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
+				}
+
+				SPI1Data[SPIMainVoltage] = ADCData[5]; //For these two just the last cell will be used
+				SPI1Data[SPIMotorVoltage] = ADCData[8];
+
+				CheckBatteryLevel(); //Check if the battery needs to be shut down
+				ADC0_Select = 0; //Reset the cycle
+				ADC1_Select = 0; //Reset the cycle
+				BeginADCConversion(); //Kick off the conversions
 
 			I2CRead(CurrentSensorNumBytes, CurrentSensorAddress, CurrentSensorMainBattery);
 			MainCurrent = I2CRxData[5]; //Get the Main Current from the buffer
@@ -526,24 +537,9 @@ void ReactionWheelOn() {
 
 			SDCard_WriteMotorOn(MainCurrent, NoTimestamp); //Write to the SD Card
 			SDCard_WriteMotorOn(LDO_Current, NoTimestamp); //Write to the SD Card
+
 			SPI1Data[SPIMainCurrent] = MainCurrent;
 			SPI1Data[SPIMotorCurrent] = LDO_Current;
-
-			if ((ADC0_Select > 2) && (ADC1_Select > 5)) { //Write the ADC Data if it's done
-
-				for (int counter = 0; counter < 9; counter++) {
-					SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
-				}
-
-				SPI1Data[SPIMainVoltage] = ADCData[6]; //For these two just the first cell will be used
-				SPI1Data[SPIMotorVoltage] = ADCData[0];
-
-				CheckBatteryLevel(); //Check if the battery needs to be shut down
-				ADC0_Select = 0; //Reset the cycle
-				ADC1_Select = 0; //Reset the cycle
-				BeginADCConversion(); //Kick off the conversions
-			}
-
 		} //End Pressure Temperature if
 
 		if (CurrentNumSeconds >= NewSDFileNumSeconds) {
@@ -556,7 +552,6 @@ void ReactionWheelOn() {
 		SDCard_NewLineMotorOn(); //Enter a new line
 		SDCard_FlushBuffer(); //Flush the buffer
 		
-		//for (int counter = 0; counter <= NumMotorWrites; counter++) { //run the motor algorithim NumMotorWrites times and then read more data
 			ZGyro_RawData = (ZGyroData * GyroLSB) / 6; //The divide by 6 does the conversion from deg/sec to rev/minute (deg/sec * 60/360 = rev/min)
 			ZGyro_RPM = EMA(ZGyro_RawData, ZGyro_RPM); //Calculate the running average of the data.  This will be used to run the reaction wheel
 
@@ -565,30 +560,35 @@ void ReactionWheelOn() {
 			}
 
 			Error = -ZGyro_RPM; //The '-' is for orientation
+
 			Integral = Integral + Error; //Keep adding to the integral.  This is the very literal of the definition of an integral, being a running sum
-			Control_Speed = (kp * Error) + (ki * Integral); //Take a weighted sum of the two.
-			//SPI1Data[SPIMotorSpeed] = (Control_Speed / 2 ^ 32); //This is a double so you need to do 2^32
+
+			Derivative = (Error - OldError); //Get the derivative term (delta between the two points)
+			OldError = Error; //Store the old error
+			
+			Control_Speed = (kp * Error) + (ki * Integral) + (kd * Derivative); //Take a weighted sum of the two.
 
 			if (Control_Speed > 0.2) {
 				SPI1Data[SPIMotorDirection] = 0;
-				Motor_Direction(CCW); //Turn it on CCW
+				Motor_Direction(CCW); //TODO DEBUG DEBUG DEBUG THIS IS FOR THE UPSIDE DOWN IMU
+				//Motor_Direction(CW); //Turn it on CW
 				MotorSpeed(Control_Speed); //Turn it on at the desired speed
 			}
 
 			else if (Control_Speed < -0.2) {
 				SPI1Data[SPIMotorDirection] = 1;
-				Motor_Direction(CW); //Turn it on CW
+				//Motor_Direction(CCW); //Turn it on CCW
+				Motor_Direction(CW); //TODO DEBUG DEBUG DEBUG THIS IS FOR THE UPSIDE DOWN IMU
 				MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
 			}
 
 			else {
 				NoMotorSpeed(); //Speed is = 0
 			}
-			delay(10);
-		//}//End for loop
-
+			delay(50);
 	}//End While
 
+	digitalWrite(BlueLED, LOW);
 	TurnMotorOff(); //Disable the motor
 	SDCardCloseFile(); //Close the SD Card File
 	Serial.println("Motor Turned Off");
@@ -596,7 +596,7 @@ void ReactionWheelOn() {
 
 void Heartbeat() {
 	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
-	GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
+	//GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
 }
 
 short XCalibration() {
@@ -659,7 +659,7 @@ short CalibrationDataRead(int Address) {
  void spi1_isr() {
 	 //See ICD for details on how the messages are constructed. Document name MSP430_Teensy_ICD.docx in Document folder in 
 	 // bad-hapibs Github
-
+	 Serial.println("Interrupt");
 	 SPI1_SR |= 0x80000000; //Clears bit to indicate interrupt
 
 	 if (SPI1RxByteCount == 0) { //First byte received
@@ -711,7 +711,7 @@ short CalibrationDataRead(int Address) {
 
 			 break;
 		 case 5:
-			 SPI0_PUSHR_SLAVE = (SPI1TxData & 0xFF); //Tx Second Byte
+			 SPI1_PUSHR_SLAVE = (SPI1TxData & 0xFF); //Tx Second Byte
 			 break; //Bits 19-16 are not used
 		 default:
 			 MsgError = 1;
@@ -951,7 +951,7 @@ short CalibrationDataRead(int Address) {
 
 				 TxCRC = TempCRCData;
 				 
-				 SPI0_PUSHR_SLAVE = ((SPI1TxData >> 8) & 0xFF); //Tx First Byte
+				 SPI1_PUSHR_SLAVE = ((SPI1TxData >> 8) & 0xFF); //Tx First Byte
 			 } //End Tx if
 		 } //end not reseting the bus else.
 	 } //End third byte else

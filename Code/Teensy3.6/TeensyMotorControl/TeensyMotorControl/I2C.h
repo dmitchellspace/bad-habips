@@ -17,6 +17,7 @@ void I2CRead(byte NumBytesRx, byte I2CAddress, byte I2CRegister);
 void I2CWrite(byte I2CAddress, byte I2CRegister, byte TxData);
 void InitTempPressure();
 void InitCurrentSensor();
+bool CutDownPressure(int32_t RawTemp, int32_t RawPressure);
 
 extern const byte TempPressureAddress, TempPressureStartRegister, TempPressureNumRegisters;
 extern byte I2CRxData[6];

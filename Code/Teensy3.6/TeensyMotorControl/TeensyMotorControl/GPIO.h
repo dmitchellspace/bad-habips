@@ -14,4 +14,6 @@
 
 void Init_GPIO();
 void SelfTestDisplayResults();
+void SetupTimerButton();
 extern bool FaultMatrix[8];
+extern const int BlueLED;

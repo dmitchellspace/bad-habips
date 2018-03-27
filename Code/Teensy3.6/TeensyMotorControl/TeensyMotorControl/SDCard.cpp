@@ -143,6 +143,20 @@ void SDCard_WriteMotorOn(int SDCardData, byte Timestamp) {
 	SDFile.print(","); //Add a comma
 }
 
+void SDCard_WriteDoubleMotorOn(double SDCardData, byte Timestamp) {
+	if (Timestamp == 1) {
+		GetClock(); //Get Current RTC
+		SDFile.print(RTCCurrentData[2]); //Hours
+		SDFile.print(':');
+		SDFile.print(RTCCurrentData[1]); //Minutes
+		SDFile.print(":");
+		SDFile.print(RTCCurrentData[0]); //Seconds
+		SDFile.print(",");
+	}
+	SDFile.print(SDCardData); //Record the data
+	SDFile.print(","); //Add a comma
+}
+
 void SDCard_NewLineMotorOn() {
 	SDFile.println();
 }
