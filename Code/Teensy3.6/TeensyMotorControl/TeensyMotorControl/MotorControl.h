@@ -26,3 +26,4 @@ void NoMotorSpeed();
 void CheckBatteryLevel();
 
 extern int ADCData[9], ADC0_Select, ADC1_Select;
+extern bool MotorOn;

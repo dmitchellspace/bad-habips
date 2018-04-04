@@ -98,7 +98,6 @@ void IMUSelfTest() {
 	}
 	else {
 		Serial.println("IMU 0 Selftest Failed");
-		Serial.println(IMU_ST_Data); //DEBUG
 		FaultMatrix[5] = 1;
 	}
 
@@ -110,7 +109,6 @@ void IMUSelfTest() {
 	}
 	else {
 		Serial.println("IMU 1 Selftest Failed");
-		Serial.println(IMU_ST_Data);
 		FaultMatrix[6] = 1;
 		IMUSelect = IMU0;
 	}

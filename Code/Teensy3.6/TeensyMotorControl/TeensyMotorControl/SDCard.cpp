@@ -7,6 +7,7 @@
 #include "Clocks.h"
 #include <EEPROM.h>
 #include "GPIO.h"
+#include "MotorControl.h"
 
 //Define File Names
 char FileName[11] = "000000.csv"; //This format is yyyymmddhhmmss.csv
@@ -16,7 +17,9 @@ const char* SDFileName;
 const int chipSelect = BUILTIN_SDCARD, ASCIIOffset = 48;
 File SDFile;
 int SDCardPresent; //Is the SD Card Present?
-bool MotorOn = 0;
+bool MotorStatus = 0;
+byte SDFileNumber;
+const int SDFileMemoryLocation = 14;
 
 void SDCard_Setup() { //Initiliaze SD Card
 	if (!SD.begin(chipSelect)) { //Check if SD Card Is present
@@ -60,14 +63,6 @@ void SDCard_SensorFailure(byte ErrorCode) {
 
 void NewSDFile() {
 		GetClock();
-		//FileName[0] = ((RTCCurrentData[5] / 1000) % 10) + ASCIIOffset; //Year
-		//FileName[1] = ((RTCCurrentData[5] / 100) % 10) + ASCIIOffset; //Year
-		//FileName[2] = ((RTCCurrentData[5] / 10) % 10) + ASCIIOffset; //Year
-		//FileName[3] = ((RTCCurrentData[5]) % 10) + ASCIIOffset; //Year
-		//FileName[4] = ((RTCCurrentData[4] / 10) % 10) + ASCIIOffset; //Month
-		//FileName[5] = ((RTCCurrentData[4]) % 10) + ASCIIOffset; //Month
-		//FileName[6] = ((RTCCurrentData[3] / 10) % 10) + ASCIIOffset; //Day
-		//FileName[7] = ((RTCCurrentData[3]) % 10) + ASCIIOffset; //Day
 		FileName[0] = ((RTCCurrentData[2] / 10) % 10) + ASCIIOffset; //Get hours tens digit
 		FileName[1] = ((RTCCurrentData[2] % 10)) + ASCIIOffset; //Get hours ones digit
 		FileName[2] = ((RTCCurrentData[1] / 10) % 10) + ASCIIOffset; //Get minutes tens digit
@@ -100,7 +95,9 @@ void NewSDFile() {
 		SDCardPresent = 0; //SD Card Failed
 	}
 
-SDFile.close(); //Close SD File
+	SDFileNumber++;
+	EEPROM.write(SDFileMemoryLocation, SDFileNumber);
+	SDFile.close(); //Close SD File
 }
 
 /*
@@ -114,16 +111,16 @@ All of the following functions are used for that purpose:
 
 void SDCardOpenFile() {
 	SDFile = SD.open(SDFileName, FILE_WRITE); //Open the file to write
-	if (digitalRead(PIN_A6)) {
+	if (MotorOn) {
 		SDFile.println("Motor Turned On");
-		MotorOn = 1;
+		MotorStatus = 1;
 	}
 }
 
 void SDCardCloseFile() {
-	if (MotorOn == 1) {
+	if (MotorStatus == 1) {
 		SDFile.println("Motor Turned Off");
-		MotorOn = 0;
+		MotorStatus = 0;
 	}
 	SDFile.close(); //Close SD File
 }

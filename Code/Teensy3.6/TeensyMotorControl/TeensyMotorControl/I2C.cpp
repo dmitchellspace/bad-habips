@@ -121,14 +121,13 @@ void InitCurrentSensor() {
 	I2CWrite(CurrentSensorAddress, CurrentCtrlReg, CurrentCtrlData); //Set it up for continuous mode
 }
 
-bool CutDownPressure(int32_t RawTemp, int32_t RawPressure) {
+float PressureConversion(int32_t RawTemp, int32_t RawPressure) {
 //	/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
 //	This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
 //	40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
 //	*/
 
 	//The code for calculating the pressure values was taken out of the sensor datasheet.  Part number BME280
-	const int CutoffPressure = 187;
 	int32_t var3, var4, t_fine;
 	int64_t var1, var2, Press;
 	const int32_t T1 = TCal1, T2 = TCal2, T3 = PCal3;
@@ -157,15 +156,51 @@ bool CutDownPressure(int32_t RawTemp, int32_t RawPressure) {
 	p = Press;
 	Pressure = (p / 256)*.01;
 
-	if (Pressure < CutoffPressure) {
-		return true; //Above 40,000 feet
-	}
-
-	else {
-		return false; //Below 40,000 feet
-	}
-
+	return Pressure;
 }//End pressure cutdown function
+
+bool PressureComparison(int32_t RawTemp, int32_t RawPressure, float Comparison) {
+	//	/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
+	//	This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
+	//	40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
+	//	*/
+
+	//The code for calculating the pressure values was taken out of the sensor datasheet.  Part number BME280
+	int32_t var3, var4, t_fine;
+	int64_t var1, var2, Press;
+	const int32_t T1 = TCal1, T2 = TCal2, T3 = PCal3;
+	const int64_t Num1 = 1, P1 = PCal1, P2 = PCal2, P3 = PCal3, P4 = PCal4, P5 = PCal5, P6 = PCal6, P7 = PCal7, P8 = PCal8, P9 = PCal9;
+	uint32_t p;
+	float Pressure;
+
+	var3 = ((((RawTemp >> 3) - (T1 << 1)))*(T2)) >> 11;
+	var4 = (((((RawTemp >> 4) - (T1))*((RawTemp >> 4) - (T1))) >> 12)*(T3)) >> 14;
+	t_fine = var3 + var4;
+
+	var1 = (t_fine)-128000;
+	var2 = var1 * var1 * P6;
+	var2 = var2 + ((var1*P5) << 17);
+	var2 = var2 + ((P4) << 35);
+	var1 = ((var1*var1*P3) >> 8) + ((var1*P2) << 12);
+	var1 = ((((Num1) << 47) + var1))*(P1) >> 33;
+	if (var1 == 0) { //Avoid divide by 0 exception
+		return false;
+	}
+	Press = 1048576 - RawPressure;
+	Press = (((Press << 31) - var2) * 3125) / var1;
+	var1 = ((P9)*(Press >> 13)*(Press >> 13)) >> 25;
+	var2 = ((P8)*Press) >> 19;
+	Press = ((Press + var1 + var2) >> 8) + ((P7) << 4);
+	p = Press;
+	Pressure = (p / 256)*.01;
+	
+	if (Pressure <= Comparison) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
 
 void I2CWrite(byte I2CAddress, byte I2CRegister, byte TxData) {
 	//A write to the temperature/pressure sensor requires three seperate writes.  The first is the I2C Address, the second is the register number,

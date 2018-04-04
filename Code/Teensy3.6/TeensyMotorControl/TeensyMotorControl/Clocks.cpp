@@ -4,17 +4,34 @@
 #include "Clocks.h"
 #include <TimeLib.h>
 #include <DS1307RTC.h>  // a basic DS1307 library that returns time as a time_t
+#include "SDCard.h"
 
-const int hours = 0, minutes = 0, seconds = 0, date = 14,  mnth = 3, yr = 2018; //Used For Real Time Clock
 int RTCCurrentData[6]; //Goes from small to big ie: [0] = seconds [5] = yr
+int NumSeconds;
+const int SecondsInADay = 86400, SecondsInAHour = 3600, SecondsInAMinute = 60;
 
 void Init_RTC() {
-	if (timeStatus() != timeSet) { //Did the teensy reset, but the RTC retain power?
-		setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
+	int hours = 0, minutes = 0, seconds = 0, date = 30, mnth = 3, yr = 2018; //Used For Real Time Clock
+	NumSeconds = SDFileNumber * 300;
+	while (NumSeconds >= SecondsInADay) {
+		date++;
+		NumSeconds -= SecondsInADay;
 	}
+	while (NumSeconds >= SecondsInAHour) {
+		hours++;
+		NumSeconds -= SecondsInAHour;
+	}
+
+	while (NumSeconds >= SecondsInAMinute) {
+		minutes++;
+		NumSeconds -= SecondsInAMinute;
+	}
+
+		setTime(hours, minutes, seconds, date, mnth, yr); //Load Data into RTC
 
 	if (timeStatus() == timeSet) { //Check if RTC was successfully setup
 		Serial.println("RTC Successfully Initialized"); //It was
+		GetClock();
 	}
 	else {
 		Serial.println("RTC Failed"); //It was not

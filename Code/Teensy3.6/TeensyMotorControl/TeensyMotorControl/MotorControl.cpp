@@ -24,9 +24,10 @@ int ADCData[9]; //This array is [S1 S2 S3 S4 S5 S6 M1 M2 M3].  This is what gets
 const float BatteryDivider[9] = { 0.59523, 0.29752, 0.19844, 0.148766, 0.11841, 0.09921, 0.59524, 0.29752, 0.19806 }; // [S1 S2 S3 S4 S5 S6 M1 M2 M3]
 const float ADC_LSB = 0.00005035400390625; //3.3V scale, 16 bit resolution
 bool MainBatteryBad, MotorBatteryBad;
-const double MainCutoffVoltage = 9.9, MotorCutoffVoltage = 19.8; //This is 3.3V x 3Cells and 3.3V x 6Cells
-const byte MotorRail = 5, MainRail = 8; //Location in the array
+const double MainCutoffVoltage = 6.6, MotorCutoffVoltage = 19.8; //This is 3.3V x 2Cells and 3.3V x 6Cells
+const byte MotorRail = 5, MainRail = 7; //Location in the array
 byte MainBadMeasurements = 0, MainGoodMeasurements = 0, MotorBadMeasurements = 0, MotorGoodMeasurements = 0; //Consecutive number of good/bad measurements
+bool MotorOn = 0;
 
 void Init_MotorInterface() {
 	pinMode(MotorControl_Input, INPUT);//Set up Pin 20 to Input to Control Turning on Motor from Host MSP430
@@ -60,7 +61,6 @@ void Init_ADC() {
 		Serial.println("ADC0 Successfully Initialized");
 	}
 	else {
-		Serial.println(ADC0_SC3);
 		Serial.println("ADC0 Failed to Initialize");
 		FaultMatrix[1] = 1;
 	}
@@ -136,12 +136,12 @@ void CheckBatteryLevel() {
 				MotorGoodMeasurements = 0;
 			}
 			else {
-				//digitalWrite(MotorEnable, LOW); //Turn off the motor
+				//MotorOn = 0;
 				//TODO DEBUG PUT THIS BACK IN
 			}
 		} //End Bad if
 
-		else {// Main Battery is good
+		else {// Motor Battery is good
 			MotorBadMeasurements = 0;
 			MotorGoodMeasurements++;
 		}
@@ -165,8 +165,8 @@ void CheckBatteryLevel() {
 			}
 			else { //You're main is good
 				//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
-				//digitalWrite(Main_Batt_En, HIGH); //Enable Main
-				//digitalWrite(Backup_Batt_En, LOW); //Disable Backup
+				digitalWrite(Main_Batt_En, HIGH); //Enable Main
+				digitalWrite(Backup_Batt_En, LOW); //Disable Backup
 				//TODO DEBUG UNCOMMENT THESE LINES
 			}
 		} //End else

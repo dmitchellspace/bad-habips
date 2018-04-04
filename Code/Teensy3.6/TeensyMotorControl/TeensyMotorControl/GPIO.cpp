@@ -1,6 +1,6 @@
 #include "GPIO.h"
 
-const int OnBoardLED = 13, TeensyButton = 18, RedLED = 19, GreenLED = 24, BlueLED = 25;
+const int OnBoardLED = 13, TeensyButton = 18, RedLED = 19, GreenLED = 24, BlueLED = 25, CutdownSignal = 22;
 //This is the Fault Matrix that is being used to display what failures have occured on the LEDs.  It is an 8 element boolean array that marks everything as a pass or a fail
 bool FaultMatrix[8] = { 0 }; // 8 Element Array
 
@@ -26,11 +26,14 @@ void Init_GPIO() {
 	pinMode(BlueLED, OUTPUT);//Set up Pin to Control Blue LED.  This LED is used as the heartbeat.
 	digitalWrite(BlueLED, LOW); //Init As Off
 	pinMode(TeensyButton, INPUT);//This is the pin that's used in order to trigger the calibration sequence
+	pinMode(CutdownSignal, OUTPUT); //This is the signal to tell the MSP430 to cut down the balloon
+	digitalWrite(CutdownSignal, LOW); //This signal is active high
 	Serial.println("GPIO Successfully Initialized");
 }
 
 void SetupTimerButton() { //
-	//PORTB_PCR3 |= 1090000; //Clear interrupt flag, enable interrupt on rising edge.
+	PORTB_PCR3 |= 1090000; //Clear interrupt flag, enable interrupt on rising edge.
+	NVIC_ISER1 |= 10000000; //Enable Interrupts
 }
 
 void SelfTestDisplayResults() {
@@ -53,4 +56,8 @@ void SelfTestDisplayResults() {
 
 		} //End outer for loop
 	} //End else
+}
+
+void Cutdown() {
+	digitalWrite(CutdownSignal, HIGH); //Cutdown the balloon
 }

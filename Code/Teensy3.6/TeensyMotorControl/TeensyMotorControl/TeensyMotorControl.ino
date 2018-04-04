@@ -178,6 +178,15 @@ Version 18:
 	A function was added to calculate the pressure on the board.  There is a very good chance that the communications board will not be working in time for the launch.  So Dr. Patru has requested
 	that everything is done locally. Part of this is to cut down at a certain alitude (40,000 ft + 3hrs).  This is approximated using pressure measurements.  So this function has been added.  
 	It has not been called yet, I'm meeting with Carlos tomorrow to discuss how we want to go about this.
+Version 19
+	Uploaded on 04/04/2018
+	Some of the launch day patches were added.  This includes using the altitude to check for 40,000 feet and 10,000 feet.  It triggers a cutdown at three hours and 40,000 feet.  The motor turns on at either
+	10,000 feet or ten minutes.  The timer for these two start once we are past two hundred feet from the ground.  the two hundred foot measurement is the only relative measurment.  The other two are taken from 
+	sea level.  The original time is stored in flash memory.  It is reset when the button is held on startup.
+	There is a problem with the RTC losing power.  We thought using a super cap would be enough to keep it going, but that doesn't seem to be enough.  As a result I am using the SD card to restore the RTC.  I put the
+	SD file number in flash memory, and use this to estimate where the RTC was.  A new SD file is created every five minutes, and so this makes it possible to estimate.  TO NEXT YEARS TEAM: Even though last version is the 
+	good version, you may want to bring over this RTC functionality.
+	The RTC is reset if the button is held down on startup.  Right now if the button is held on startup it will calibrate the gyroscope, get a ground pressure measurment, and reset the RTC.
 	*/
 
 //Start Variable Declaration
@@ -209,6 +218,8 @@ int XAccelData, YAccelData, ZAccelData, XGyroData, YGyroData, ZGyroData;
 short XCalibrationData, YCalibrationData, ZCalibrationData;
 int XCalibrationMemoryLocation = 0, YCalibrationMemoryLocation = 2, ZCalibrationMemoryLocation = 4; //Each takes two bytes of memory, these locations plus six will be for IMU1
 
+short PressureCalibration;
+int PressureCalibrationMemoryLocation = 12;
 //This is used for Temperature and Pressure
 int PressureData, TemperatureData;
 bool AltitudeCutoff;
@@ -225,6 +236,16 @@ int CurrentNumSeconds = 0; // Current time until next SD File
 const byte CCW = 0, CW = 1;
 const int NumMotorWrites = 6;
 
+//Timer Variables
+int DeltaTime = 0;
+const int FiveSeconds = 5000, TenMinutes = 600, ThreeHours = 10800; //FiveSeconds is in ms, the other two are in seconds.
+//Three hours is 3:10 to account for time to prep for takeoff. 10 minutes is 20 for the same reason.
+int OriginalTime = 0, CurrentTime = 0;
+bool MotorWasOn = 0, CutDownAltitude = 0, CutDownAlreadyCheck = 0;
+float GroundPressure;
+const float TwoHundredFootDelta = 6, FortyThousandFootAltitude = 187, TenThousandFootAltitude = 697;
+const int OriginTimeMemoryLocation = 16;
+short OriginTimeFromMemory;
 //End Variable Declaration
 
 #include "Clocks.h"
@@ -244,6 +265,7 @@ void setup() { //Only runs once upon powering up the board
 	//RESPONDS MAKE SURE TO TAKE OUT
 	//DEBUG
 	BootTime = millis();
+	SDFileNumber = EEPROM.read(SDFileMemoryLocation);//Get the SD File Number
 	ADC_Calibration(); //Caibration takes some time to complete, so initiate it before anything else is done
 	Init_GPIO(); //Do initilization on GPIO Pins
 	Init_RTC(); //Initiliaze Real Time Clock
@@ -255,6 +277,37 @@ void setup() { //Only runs once upon powering up the board
 
 	if (!digitalRead(PIN_A4)) { //This checks the IMU calibration button.  THE BUTTON NEEDS TO BE HELD ON STARTUP IN ORDER FOR THE CALIBRATION TO TAKE PLACE
 		int CalCounter = 0;
+		
+		EEPROM.write(SDFileMemoryLocation, 0); //This is to restart the RTC
+		SDFileNumber = 0; //Restart the file system
+		OriginalTime = 0; //Restart the time
+		CalibrationDataWrite(0, OriginTimeMemoryLocation);
+		Init_RTC(); //Reset the clock
+		NewSDFile(); //New File
+
+		SDCard_CalibrationDataWrite(TCal1, TCal2, TCal3, 0, 0, 0, 0, 0, 0, 1); //Writes the Temp Cal Data to the SD Card
+		SDCard_CalibrationDataWrite(PCal1, PCal2, PCal3, PCal4, PCal5, PCal6, PCal7, PCal8, PCal9, 0); //Writes the Pressure Cal Data to the SD Card
+
+		I2CRead(TempPressureNumRegisters, TempPressureAddress, TempPressureStartRegister);
+
+		TemperatureData = I2CRxData[2];
+		TemperatureData = ((TemperatureData << 8) & 0xFF00) | I2CRxData[1];
+		TemperatureData = ((TemperatureData << 4) & 0xFFFF0) | ((I2CRxData[0] >> 4) & 0x0F);
+		SDCard_WriteMotorOn(TemperatureData, NoTimestamp);
+		SPI1Data[SPIOnBoardTemp] = (TemperatureData / (2 ^ 4)); //Cut off last four bits
+
+		PressureData = I2CRxData[5];
+		PressureData = ((PressureData << 8) & 0xFF00) | I2CRxData[4];
+		PressureData = ((PressureData << 4) & 0xFFFF0) | ((I2CRxData[3] >> 4) & 0x0F);
+		SDCard_WriteMotorOn(PressureData, NoTimestamp);
+		SPI1Data[SPIPressure] = (PressureData / (2 ^ 4)); //Cut off last four bits
+
+		GroundPressure = PressureConversion(TemperatureData, PressureData);
+		Serial.print("Ground Pressure = ");
+		Serial.println(GroundPressure);
+		PressureCalibration = GroundPressure; //Make it a short
+		CalibrationDataWrite(PressureCalibration, PressureCalibrationMemoryLocation); //Put it in memory
+
 		XCalibrationData = XCalibration(); //Perform a cal
 		CalCounter++;
 
@@ -302,6 +355,10 @@ void setup() { //Only runs once upon powering up the board
 	}
 
 	else {
+		PressureCalibration = CalibrationDataRead(PressureCalibrationMemoryLocation);
+		GroundPressure = PressureCalibration;
+		OriginTimeFromMemory = CalibrationDataRead(OriginTimeMemoryLocation);
+		OriginalTime = OriginTimeFromMemory;
 		if (IMUSelect == IMU0) {
 			XCalibrationData = CalibrationDataRead(XCalibrationMemoryLocation); // Get X from flash
 			YCalibrationData = CalibrationDataRead(YCalibrationMemoryLocation); //Get Y from flash
@@ -317,17 +374,14 @@ void setup() { //Only runs once upon powering up the board
 	} //End no calibration else
 
 	SelfTestDisplayResults(); //Display the results on the red LED
-
-
-
+	
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
-	
 } //End of setup
 
 void loop() {//Main Loop
-	if (!digitalRead(PIN_A6)) {//Check to see if motor should be turned on
+	if (!MotorOn) {//Check to see if motor should be turned on
 		CollectData();
 	}
 	else { //Motor should be on
@@ -346,7 +400,7 @@ void CollectData() {
 	*/
 	SPI1Data[SPIMotorEnable] = 0;
 
-	while (!digitalRead(PIN_A6)) { //Stay in this loop until Reaction Wheel is turned on
+	while (!MotorOn) { //Stay in this loop until Reaction Wheel is turned on
 
 		 if (SDCardPresent == 0) { //SD Card is not present
 			SDCard_Setup(); //Try to set it up again
@@ -403,6 +457,14 @@ void CollectData() {
 				SDCard_WriteMotorOn(PressureData, NoTimestamp);
 				SPI1Data[SPIPressure] = (PressureData / (2^4)); //Cut off last four bits
 
+				if ((OriginalTime == 0) && ((GroundPressure - TwoHundredFootDelta) >= PressureConversion(TemperatureData, PressureData))) { //Get original Clock, you're over 200ft
+					Serial.println("Clock Set");
+					GetClock(); //Get clock
+					OriginalTime = ((RTCCurrentData[2] * 3600) + (RTCCurrentData[1] * 60) + (RTCCurrentData[0])); //Gets the number of seconds.
+					OriginTimeFromMemory = OriginalTime;
+					CalibrationDataWrite(OriginTimeFromMemory, OriginTimeMemoryLocation);
+				}
+
 					for (int counter = 0; counter < 9; counter++) {
 						SDCard_WriteMotorOn(ADCData[counter], NoTimestamp); //Write all of the ADC Data
 					}
@@ -437,10 +499,27 @@ void CollectData() {
 				SDCard_SensorFailure(SPI0Timeout); //Print Error Message
 			}
 
+			if ((CurrentNumSeconds % 60) == 0) {
+				GetClock();
+				CurrentTime = ((RTCCurrentData[2] * 3600) + (RTCCurrentData[1] * 60) + (RTCCurrentData[0])); //Get number of seconds
+
+				if ((((CurrentTime - OriginalTime) >= TenMinutes) || PressureComparison(TemperatureData, PressureData, TenThousandFootAltitude)) && (!MotorWasOn)) { //Is it time to turn the motor on?
+					MotorOn = 1;
+					MotorWasOn = 1;
+				} //End motor on if
+
+				else if (((CurrentTime - OriginalTime) >= ThreeHours) && (!CutDownAlreadyCheck)) { //Check if it's time to cut down
+					CutDownAlreadyCheck = 1; //Mark that you checked this
+					if (PressureComparison(TemperatureData, PressureData, FortyThousandFootAltitude)) {
+						Cutdown();
+					} //End 40,000 feet check
+				} //End cut down time
+			}
+
 			if (CurrentNumSeconds >= NewSDFileNumSeconds) {
 				NewSDFile(); //Create a new file
 				CurrentNumSeconds = 0; //Restart the counter
-			}
+			} //End five minute if
 
 		} //End SD card else
 	} //End While statement
@@ -455,10 +534,12 @@ void ReactionWheelOn() {
 	instead of after every individual write.  This should make each write take about 200us instead of about 3ms.
 	*/
 	double ZGyro_RawData, ZGyro_RPM = 0, Error, OldError = 0, Integral = 0, Control_Speed, Derivative = 0;
-	double kp = 140; //For algorithim
-	double ki = 0.2; //For algorithim
-	double kd = 0.01; //For algorithim
+	const double kp = 140; //For algorithim
+	const double ki = 0.2; //For algorithim
+	const double kd = 0.01; //For algorithim
 	const double GyroLSB = 0.061035156; //(2000/2^15): Range of data is +/-2000deg/sec.
+	double CurrentPressure = 0, PreviousPressure = 10000; //Init Previous Pressure as a big number
+	byte ConsecutiveDescending = 0; //Init to 0
 
 	Serial.println("Motor Turned On");
 	SPI1Data[SPIMotorEnable] = 1;
@@ -467,13 +548,7 @@ void ReactionWheelOn() {
 	TurnMotorOn(); //Enable the motor
 	digitalWrite(BlueLED, HIGH);
 
-	while (digitalRead(PIN_A6)) {//Stay in this loop until Reaction Wheel is turned on
-
-		//Serial.print("SR: ");
-		//Serial.println(SPI1_SR); //DEBUG DEBUG DEBUG
-		//Serial.print("MCR: ");
-		//Serial.println(SPI1_MCR);
-		//SPI1_PUSHR_SLAVE = 0xAA; //DEBUG DEBUG DEBUG
+	while (MotorOn) {//Stay in this loop until Reaction Wheel is turned on
 
 		XAccelData = IMURead(XAccelAddress, 0, IMUSelect); //Collect X Accel
 		SDCard_WriteMotorOn(XAccelData, Timestamp); //Write it to the SD Card
@@ -541,13 +616,40 @@ void ReactionWheelOn() {
 			SPI1Data[SPIMainCurrent] = MainCurrent;
 			SPI1Data[SPIMotorCurrent] = LDO_Current;
 		} //End Pressure Temperature if
+		
+		if ((CurrentNumSeconds % 60) == 0) { //Check once a minute
+			GetClock();
+			CurrentTime = ((RTCCurrentData[2] * 3600) + (RTCCurrentData[1] * 60) + (RTCCurrentData[0])); //Get number of seconds
+
+			if (((CurrentTime - OriginalTime) >= ThreeHours) && (!CutDownAlreadyCheck)) { //Check if it's time to cut down
+				CutDownAlreadyCheck = 1; //Mark that you checked this
+				MotorOn = 0; //Turn the motor off
+				if (PressureComparison(TemperatureData, PressureData, FortyThousandFootAltitude)) { //Are you above 40,000?
+					Cutdown(); //Cutdown
+				} //End 40,000 feet check
+			} //End cut down time
+
+			else { //You only want to check this if the motor is still going to be on
+				CurrentPressure = PressureConversion(TemperatureData, PressureData);
+				if (CurrentPressure > (PreviousPressure + 2)) { //Are you descending?
+					ConsecutiveDescending++; //Increment
+					if (ConsecutiveDescending >= 3) { //Three in a row descending
+						MotorOn = 0; //Turn the motor off
+					} //End >=3 if
+				} //End descending if
+				else { //You're not descending
+					ConsecutiveDescending = 0; //Reset the counter
+				} //End else
+				PreviousPressure = CurrentPressure; //Move the current pressure into previous
+			} //End overarching else
+		} //End one minute loop
 
 		if (CurrentNumSeconds >= NewSDFileNumSeconds) {
 			SDCardCloseFile(); //Close the previous file
 			NewSDFile(); //Create a new file
 			CurrentNumSeconds = 0; //Restart the counter
 			SDCardOpenFile(); //Open the new file
-		}
+		} //End five minute if
 
 		SDCard_NewLineMotorOn(); //Enter a new line
 		SDCard_FlushBuffer(); //Flush the buffer
@@ -596,7 +698,6 @@ void ReactionWheelOn() {
 
 void Heartbeat() {
 	GPIOC_PTOR ^= 0x20; //Toggle On board LED (Pin C5).
-	//GPIOA_PTOR ^= 0x20; //Toggle Blue LED (Pin A5).
 }
 
 short XCalibration() {
@@ -650,13 +751,13 @@ short CalibrationDataRead(int Address) {
 		return Data;
 }
 
- void ftm0_isr() { //1 Second Timer
+void ftm0_isr() { //1 Second Timer
 	FTM0_SC &= ~0x80; //Clear the flag
 	PressTempFlag = 1;
 	CurrentNumSeconds++;
 }
 
- void spi1_isr() {
+void spi1_isr() {
 	 //See ICD for details on how the messages are constructed. Document name MSP430_Teensy_ICD.docx in Document folder in 
 	 // bad-hapibs Github
 	 Serial.println("Interrupt");
