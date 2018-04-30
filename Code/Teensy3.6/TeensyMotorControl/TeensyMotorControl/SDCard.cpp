@@ -71,12 +71,6 @@ void NewSDFile() {
 		FileName[5] = ((RTCCurrentData[0] % 10)) + ASCIIOffset; //Get seconds ones digit
 		SDFileName = const_cast<char*>(FileNameptr);
 
-		if (SD.exists(SDFileName)) { //DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
-			//DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
-			SD.remove(SDFileName); //This deletes what is currently on the card
-											   //DEBUG MAKE SURE TO REMOVE FOR FINAL VERSION
-		}
-
 	SDFile = SD.open(SDFileName, FILE_WRITE); //Creates a new file
 	if (SDFile) {//Check to see if file is successfully opened
 		SDFile.print("HAPIB Flight "); //Put Header on SD Card File
@@ -86,12 +80,14 @@ void NewSDFile() {
 		SDFile.print(RTCCurrentData[3]); //Add day
 		SDFile.print("/");
 		SDFile.println(RTCCurrentData[5]); //Add year
-		Serial.println("SD Card initialized, HAPIB.csv created."); //Success
+		Serial.print("SD File Number "); //Success
+		Serial.print(SDFileNumber);
+		Serial.println(" Created.");
 		SDCardPresent = 1; //SD Card Passed
 		SDFile.println("Time,XAccel,YAccel,ZAccel,XGyro,YGyro,ZGyro,Temperature,Pressure,S1,S2,S3,S4,S5,S5,M1,M2,M3,M_Current,LDO_Current");
 	}
 	else {
-		Serial.println("SD Card initialized, HAPIB.txt failed to open"); //Failed
+		Serial.println("SD Card initialized, New File failed to open"); //Failed
 		SDCardPresent = 0; //SD Card Failed
 	}
 

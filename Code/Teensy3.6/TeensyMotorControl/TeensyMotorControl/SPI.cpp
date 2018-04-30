@@ -17,7 +17,10 @@ void Init_SPI() {//Initiliaze SPI interface
 	Init_DAQCS_SPI(); //Set up SPI to act as slave with main MSP430
 	Init_IMU_SPI(); //Set up SPI to act as master with IMU
 	IMUSelfTest(); //Run SelfTest
-	//TODO Add Case for if both IMUs fail
+	if ((FaultMatrix[5] && FaultMatrix[6])) { //If both failed try again
+		Init_IMU_SPI(); //Set up SPI to act as master with IMU
+		IMUSelfTest(); //Run SelfTest
+	}
 }
 
 void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
@@ -46,7 +49,6 @@ void Init_DAQCS_SPI() { //Set up SPI to act as slave with main MSP430
 	TxSPI1Msg = 0; //Don't transmit the next cycle
 	SPI1RxByteCount = 0; //You've Rx'd 0 bytes
 	Serial.println("DAQCS SPI Bus Successfully Initialized");
-	//TODO Have a failure case and set the Fault Matrix Entry
 }
 
 void Init_IMU_SPI() { //Set up SPI to act as master with IMU

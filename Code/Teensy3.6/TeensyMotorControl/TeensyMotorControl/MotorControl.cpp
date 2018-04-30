@@ -13,7 +13,7 @@ const int MotorCurrent_Feedback = 16;
 const int MotorControl_Input = 20;
 const int Main_Batt_En = 28;
 const int Backup_Batt_En = 6;
-
+const int RedLED = 19;
 //ADC Variables
 const int ADC0_ChSelect[3] = { 0x11, 0x12, 0x17 };
 const int ADC1_ChSelect[6] = { 0x04, 0x05, 0x06, 0x07, 0x11, 0x17 };
@@ -136,8 +136,8 @@ void CheckBatteryLevel() {
 				MotorGoodMeasurements = 0;
 			}
 			else {
-				//MotorOn = 0;
-				//TODO DEBUG PUT THIS BACK IN
+				MotorOn = 0;
+				digitalWrite(RedLED, HIGH);
 			}
 		} //End Bad if
 
@@ -155,6 +155,7 @@ void CheckBatteryLevel() {
 				//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
 				digitalWrite(Backup_Batt_En, HIGH); //Enable Backup
 				digitalWrite(Main_Batt_En, LOW); //Disable Main
+				digitalWrite(BackupMSP430LED, HIGH); //Tell the MSP430 the backup is on
 			}
 		} //End if
 
@@ -167,7 +168,7 @@ void CheckBatteryLevel() {
 				//It is very important that this is done in this order.  You don't want both of the batteries off at the same time.
 				digitalWrite(Main_Batt_En, HIGH); //Enable Main
 				digitalWrite(Backup_Batt_En, LOW); //Disable Backup
-				//TODO DEBUG UNCOMMENT THESE LINES
+				digitalWrite(BackupMSP430LED, LOW); //Tell the MSP430 the main is good
 			}
 		} //End else
 

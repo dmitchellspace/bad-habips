@@ -122,15 +122,15 @@ void InitCurrentSensor() {
 }
 
 float PressureConversion(int32_t RawTemp, int32_t RawPressure) {
-//	/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
-//	This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
-//	40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
-//	*/
+/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
+This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
+40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
+*/
 
 	//The code for calculating the pressure values was taken out of the sensor datasheet.  Part number BME280
 	int32_t var3, var4, t_fine;
 	int64_t var1, var2, Press;
-	const int32_t T1 = TCal1, T2 = TCal2, T3 = PCal3;
+	const int32_t T1 = TCal1, T2 = TCal2, T3 = TCal3;
 	const int64_t Num1 = 1, P1 = PCal1, P2 = PCal2, P3 = PCal3, P4 = PCal4, P5 = PCal5, P6 = PCal6, P7 = PCal7, P8 = PCal8, P9 = PCal9;
 	uint32_t p;
 	float Pressure;
@@ -155,20 +155,19 @@ float PressureConversion(int32_t RawTemp, int32_t RawPressure) {
 	Press = ((Press + var1 + var2) >> 8) + ((P7) << 4);
 	p = Press;
 	Pressure = (p / 256)*.01;
-
 	return Pressure;
 }//End pressure cutdown function
 
-bool PressureComparison(int32_t RawTemp, int32_t RawPressure, float Comparison) {
-	//	/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
-	//	This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
-	//	40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
-	//	*/
+bool PressureComparison(int32_t RawTemp, int32_t RawPressure, float Comparison) {//Returns true if the altitude is higher (Pressure is lower) then the comparison value
+	/*This is here because the altitude check on the Comms board was not working.  Instead we are going to base it off of time elapsed as well as pressure.
+	This function is a boolean function that will say if it's time to cut down or not.  It is going to be compared against 187hPa, which is the pressure at
+	40,000ft above sea level.  This was Dr. Patrus request, to cut down if this is true, and 3 hours have passed.
+	*/
 
 	//The code for calculating the pressure values was taken out of the sensor datasheet.  Part number BME280
 	int32_t var3, var4, t_fine;
 	int64_t var1, var2, Press;
-	const int32_t T1 = TCal1, T2 = TCal2, T3 = PCal3;
+	const int32_t T1 = TCal1, T2 = TCal2, T3 = TCal3;
 	const int64_t Num1 = 1, P1 = PCal1, P2 = PCal2, P3 = PCal3, P4 = PCal4, P5 = PCal5, P6 = PCal6, P7 = PCal7, P8 = PCal8, P9 = PCal9;
 	uint32_t p;
 	float Pressure;

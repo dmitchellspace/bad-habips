@@ -187,6 +187,9 @@ Version 19
 	SD file number in flash memory, and use this to estimate where the RTC was.  A new SD file is created every five minutes, and so this makes it possible to estimate.  TO NEXT YEARS TEAM: Even though last version is the 
 	good version, you may want to bring over this RTC functionality.
 	The RTC is reset if the button is held down on startup.  Right now if the button is held on startup it will calibrate the gyroscope, get a ground pressure measurment, and reset the RTC.
+Version 20
+	Uploaded on 04/30/2018
+	This functionality is only for imagine, and the patched launch.  This should not be neccessary if you are going to have a working comms board.
 	*/
 
 //Start Variable Declaration
@@ -239,13 +242,13 @@ const int NumMotorWrites = 6;
 //Timer Variables
 int DeltaTime = 0;
 const int FiveSeconds = 5000, TenMinutes = 600, ThreeHours = 10800; //FiveSeconds is in ms, the other two are in seconds.
-//Three hours is 3:10 to account for time to prep for takeoff. 10 minutes is 20 for the same reason.
 int OriginalTime = 0, CurrentTime = 0;
 bool MotorWasOn = 0, CutDownAltitude = 0, CutDownAlreadyCheck = 0;
 float GroundPressure;
-const float TwoHundredFootDelta = 6, FortyThousandFootAltitude = 187, TenThousandFootAltitude = 697;
+const float TwoHundredFootDelta = 6, FortyThousandFootAltitude = 187, TenThousandFootAltitude = 697, OneThousandFootAltitude = 976; //These are all in hPa
 const int OriginTimeMemoryLocation = 16;
 short OriginTimeFromMemory;
+bool CheckAltitudeFlag;
 //End Variable Declaration
 
 #include "Clocks.h"
@@ -260,10 +263,6 @@ void setup() { //Only runs once upon powering up the board
 
 	delay(1000); //Put in a 1 secon delay so that everything has time to come up.
 	Serial.begin(9600); //Set Up Serial Interface
-	//DEBUG
-	//while (!Serial); // DEBUG DEBUG DEBUG THE PROGRAM WILL NOT START UNTIL THE SERIAL COMM PORT 
-	//RESPONDS MAKE SURE TO TAKE OUT
-	//DEBUG
 	BootTime = millis();
 	SDFileNumber = EEPROM.read(SDFileMemoryLocation);//Get the SD File Number
 	ADC_Calibration(); //Caibration takes some time to complete, so initiate it before anything else is done
@@ -271,13 +270,13 @@ void setup() { //Only runs once upon powering up the board
 	Init_RTC(); //Initiliaze Real Time Clock
 	SDCard_Setup();//Do initial setup for SD Card
 	Init_I2C();//Initiliaze I2C interface
-	Init_SPI();//Init\iliaze SPI interface
+	Init_SPI();//Initiliaze SPI interface
 	Init_MotorInterface(); //Initliaze Motor Interface
 	Init1SecTimer(); //Init Timer to trigger an interrupt every 1 second
 
 	if (!digitalRead(PIN_A4)) { //This checks the IMU calibration button.  THE BUTTON NEEDS TO BE HELD ON STARTUP IN ORDER FOR THE CALIBRATION TO TAKE PLACE
 		int CalCounter = 0;
-		
+		digitalWrite(ResetPI0Clock, HIGH);
 		EEPROM.write(SDFileMemoryLocation, 0); //This is to restart the RTC
 		SDFileNumber = 0; //Restart the file system
 		OriginalTime = 0; //Restart the time
@@ -352,7 +351,7 @@ void setup() { //Only runs once upon powering up the board
 		Serial.println(YCalibrationData);
 		Serial.print("ZCal = ");
 		Serial.println(ZCalibrationData);
-	}
+	} //End calibration else
 
 	else {
 		PressureCalibration = CalibrationDataRead(PressureCalibrationMemoryLocation);
@@ -374,7 +373,8 @@ void setup() { //Only runs once upon powering up the board
 	} //End no calibration else
 
 	SelfTestDisplayResults(); //Display the results on the red LED
-	
+	digitalWrite(ResetPI0Clock, LOW);
+
 	Serial.print("Initialize Time = "); //Display Time it took to initilize
 	Serial.print(millis() - BootTime); //Display Time it took to initilize
 	Serial.println("ms");//Time is in milliseconds
@@ -499,22 +499,24 @@ void CollectData() {
 				SDCard_SensorFailure(SPI0Timeout); //Print Error Message
 			}
 
-			if ((CurrentNumSeconds % 60) == 0) {
+			if (((CurrentNumSeconds % 60) == 0) && CheckAltitudeFlag) {
+				CheckAltitudeFlag = 0;
 				GetClock();
 				CurrentTime = ((RTCCurrentData[2] * 3600) + (RTCCurrentData[1] * 60) + (RTCCurrentData[0])); //Get number of seconds
 
-				if ((((CurrentTime - OriginalTime) >= TenMinutes) || PressureComparison(TemperatureData, PressureData, TenThousandFootAltitude)) && (!MotorWasOn)) { //Is it time to turn the motor on?
+				if ((((CurrentTime - OriginalTime) >= TenMinutes) || PressureComparison(TemperatureData, PressureData, TenThousandFootAltitude)) && (!MotorWasOn) && PressureComparison(TemperatureData, PressureData, OneThousandFootAltitude) && (!(FaultMatrix[5] && FaultMatrix[6]))) { //Is it time to turn the motor on?
+					//This statement turns the motor on if you are (over ten minutes or ten thousand feet) and the motor has never been turned on and you are over one thousand feet and at least of the IMUs is working.
 					MotorOn = 1;
 					MotorWasOn = 1;
 				} //End motor on if
 
 				else if (((CurrentTime - OriginalTime) >= ThreeHours) && (!CutDownAlreadyCheck)) { //Check if it's time to cut down
 					CutDownAlreadyCheck = 1; //Mark that you checked this
-					if (PressureComparison(TemperatureData, PressureData, FortyThousandFootAltitude)) {
+					if (PressureComparison(TemperatureData, PressureData, FortyThousandFootAltitude)) { //Are you above 40,000 feet
 						Cutdown();
 					} //End 40,000 feet check
 				} //End cut down time
-			}
+			} //End one minute else
 
 			if (CurrentNumSeconds >= NewSDFileNumSeconds) {
 				NewSDFile(); //Create a new file
@@ -617,7 +619,8 @@ void ReactionWheelOn() {
 			SPI1Data[SPIMotorCurrent] = LDO_Current;
 		} //End Pressure Temperature if
 		
-		if ((CurrentNumSeconds % 60) == 0) { //Check once a minute
+		if (((CurrentNumSeconds % 60) == 0) && CheckAltitudeFlag) { //Check once a minute
+			CheckAltitudeFlag = 0;
 			GetClock();
 			CurrentTime = ((RTCCurrentData[2] * 3600) + (RTCCurrentData[1] * 60) + (RTCCurrentData[0])); //Get number of seconds
 
@@ -672,15 +675,13 @@ void ReactionWheelOn() {
 
 			if (Control_Speed > 0.2) {
 				SPI1Data[SPIMotorDirection] = 0;
-				Motor_Direction(CCW); //TODO DEBUG DEBUG DEBUG THIS IS FOR THE UPSIDE DOWN IMU
-				//Motor_Direction(CW); //Turn it on CW
+				Motor_Direction(CCW); //Turn it on CCW
 				MotorSpeed(Control_Speed); //Turn it on at the desired speed
 			}
 
 			else if (Control_Speed < -0.2) {
 				SPI1Data[SPIMotorDirection] = 1;
-				//Motor_Direction(CCW); //Turn it on CCW
-				Motor_Direction(CW); //TODO DEBUG DEBUG DEBUG THIS IS FOR THE UPSIDE DOWN IMU
+				Motor_Direction(CW); //Turn it on CW
 				MotorSpeed((-Control_Speed)); //Turn it on to the desired speed
 			}
 
@@ -755,8 +756,10 @@ void ftm0_isr() { //1 Second Timer
 	FTM0_SC &= ~0x80; //Clear the flag
 	PressTempFlag = 1;
 	CurrentNumSeconds++;
+	CheckAltitudeFlag = 1;
 }
 
+/*
 void spi1_isr() {
 	 //See ICD for details on how the messages are constructed. Document name MSP430_Teensy_ICD.docx in Document folder in 
 	 // bad-hapibs Github
@@ -1056,4 +1059,4 @@ void spi1_isr() {
 			 } //End Tx if
 		 } //end not reseting the bus else.
 	 } //End third byte else
- }
+ }*/

@@ -1,6 +1,6 @@
 #include "GPIO.h"
 
-const int OnBoardLED = 13, TeensyButton = 18, RedLED = 19, GreenLED = 24, BlueLED = 25, CutdownSignal = 22;
+const int OnBoardLED = 13, TeensyButton = 18, RedLED = 19, GreenLED = 24, BlueLED = 25, CutdownSignal = 22, BackupMSP430LED = 21, ResetPI0Clock = 23;
 //This is the Fault Matrix that is being used to display what failures have occured on the LEDs.  It is an 8 element boolean array that marks everything as a pass or a fail
 bool FaultMatrix[8] = { 0 }; // 8 Element Array
 
@@ -28,22 +28,25 @@ void Init_GPIO() {
 	pinMode(TeensyButton, INPUT);//This is the pin that's used in order to trigger the calibration sequence
 	pinMode(CutdownSignal, OUTPUT); //This is the signal to tell the MSP430 to cut down the balloon
 	digitalWrite(CutdownSignal, LOW); //This signal is active high
+	pinMode(BackupMSP430LED, OUTPUT); //This LED is used to let the MSP430 know we're on the backup battery
+	digitalWrite(BackupMSP430LED, HIGH);
+	pinMode(ResetPI0Clock, OUTPUT); //This is used to let the MSP430 know that we need to reset the PI0 clocks
+	digitalWrite(ResetPI0Clock, LOW); //Init as low
 	Serial.println("GPIO Successfully Initialized");
 }
 
 void SetupTimerButton() { //
-	PORTB_PCR3 |= 1090000; //Clear interrupt flag, enable interrupt on rising edge.
-	NVIC_ISER1 |= 10000000; //Enable Interrupts
+	//PORTB_PCR3 |= 1090000; //Clear interrupt flag, enable interrupt on rising edge.
+	//NVIC_ISER1 |= 10000000; //Enable Interrupts
 }
 
 void SelfTestDisplayResults() {
-	if ((FaultMatrix[7]) || (FaultMatrix[5] && FaultMatrix[6])) { //Is there a hard failure?
+	if ((FaultMatrix[7]) || (FaultMatrix[5] && FaultMatrix[6])) { //Is there a hard failure? Both IMUs or No SD Card
 		digitalWrite(RedLED, HIGH);
 	}
 	else{ //Check for soft failures
 		digitalWrite(GreenLED, HIGH); //Set the green LED if there is no Hard failure
 		for (int counter = 0; counter <= 6; counter++) { //Check each of the bits, except for the SD Card
-
 			if (FaultMatrix[counter]) { //Did it fail?
 				for (int BlinkNumber = 0; BlinkNumber < (counter + 1); BlinkNumber++) {
 					digitalWrite(RedLED, HIGH); //Turn it on
@@ -53,9 +56,9 @@ void SelfTestDisplayResults() {
 				} //End blink for loop
 				delay(2000); //Wait two seconds to distinguish between faults.
 			} //End inner if
-
 		} //End outer for loop
 	} //End else
+	delay(2000);
 }
 
 void Cutdown() {

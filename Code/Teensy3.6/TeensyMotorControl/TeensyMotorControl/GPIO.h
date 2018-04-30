@@ -17,4 +17,4 @@ void SelfTestDisplayResults();
 void SetupTimerButton();
 void Cutdown();
 extern bool FaultMatrix[8];
-extern const int BlueLED;
+extern const int BlueLED, BackupMSP430LED, ResetPI0Clock;
