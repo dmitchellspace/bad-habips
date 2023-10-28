@@ -1,0 +1,58 @@
+Contact Info: 
+Daniel Mitchell
+ddm9599@rit.edu
+
+Notes:
+	-I fixed the trace-cutting issues on both boards (populated and unpopulated). I would definitely
+	double-check to make sure I didnt miss anything.
+	-Rev 2 has some fixes made to the schematic and some changes to the PCB. If you plan on printing 
+	a rev 2 of this board, PLEASE CALL ME. There are a few things that we need to go over that I'm not going
+	to go into detail here. It mainly invovles deleting components like the FETs that had the wrong pinout
+	and then rereading the netlist so that they come in with the correct pinout. This process can be a bit
+	messy with KiCAD and I would like to walk you through it personally if able. 
+
+Major Issues:
+-Switching regulator is not working correctly. It did originally but then stopped powering on.
+	This could potentially be a startup issue. I was probing around at one point (with power)
+	and it started working again before failing to turn on initially later after that. Due to
+	time constraints, I had to leave it and just use the 2S option in the meantime. 
+-Power resistor (R2?) can not handle the necessary current and blew up. It has been bypassed entirely.
+	Due to trace size and copper thickness (1 oz.), only ~3A can be put through the board for cutdown.
+	Unfortunately this turned out to not be the best. Either cutdown needs to be enabled for 10-15 seconds
+	or a thick jumper needs to be used to increase the amount of current to something like 5-6A. 
+
+Incorrect Nets:
+-J5 (center board connector) should have power (+3.3V) and GND instead of Multiplex_A0 and A1
+-Red LED pullups (R40 and R46) should go to +3.3V instead of +5V
+-Backup Battery Enable Pullup (R64) Should go to +3.3V FROM BATTERY VOLTAGE DIVIDER (Use TVS diode)
+	Notes: I tried doing a simple voltage divider here but that didnt work. Before startup, the Teensy
+			digital pin that is tied to this voltage divider actually draws some current. That made it 
+			impossible to use a pull-up to the voltage divider since there was current flowing through
+			the pull-up resistor. I ended up using a TVS diode instead to create the 3.3V. 
+
+Fill Issues:
+-Q5 GND is not connected to the rest of GND
+
+Connector Issues:
+-Replace J16 (MSP430 Programming) with headers (jumpers are easier to deal with than custom programming cables)
+
+Part Issues:
+-Through-holes for 32.768kHz oscillator "Y1" are too small - had to solder them to nearby capacitors C30 and C31
+-Two kinds of Green LED's (packages) - See D5 and D7
+-Use the AOZ8318DI Diode packages for all TVS that is 3.3V 
+-RTC schottky has a really high reverse leakage current. Replace with BAT41 (SOD123 footprint)
+	https://www.digikey.com/product-detail/en/comchip-technology/CDBA540-HF/641-1707-1-ND/5226090
+-Pinout for PMOS is wrong - also check NMOS (Schematic symbol issue)
+
+Other:
+-Look at voltage levels as well as current on the LTC2992
+-Add series shutoff for power to the network switch to disable when the main battery fails
+
+***RE-ANNOTATE***
+
+Before powering board:
+-Impedance check of each accessible net with respect to (WRT) to ground
+-Impedance check WRT to 5V
+-Impedance check WRT to 3.3V
+-Look at resistances for each analog voltage divider
+	-Recheck calculations for voltage division

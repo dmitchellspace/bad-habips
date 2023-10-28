@@ -1,0 +1,294 @@
+EESchema Schematic File Version 2
+LIBS:mainBoardV2-rescue
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:msp430fr4994
+LIBS:asemb-24mhz-xy-t
+LIBS:pct2075d,118
+LIBS:ms560702ba03-50
+LIBS:lsm9ds1
+LIBS:teensy
+LIBS:adg704brmz
+LIBS:lt3481
+LIBS:az2117h
+LIBS:lt8609
+LIBS:ltc2992
+LIBS:TVS_Small
+LIBS:tvsSmall
+LIBS:mainBoardV2-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 6 6
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A70F811
+P 1500 1150
+F 0 "D?" H 1550 1050 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 1250 50  0000 C CNN
+F 2 "" H 1500 1150 50  0000 C CNN
+F 3 "" H 1500 1150 50  0000 C CNN
+	1    1500 1150
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A70F8BA
+P 1500 1350
+F 0 "#PWR?" H 1500 1100 50  0001 C CNN
+F 1 "GND" H 1500 1200 50  0000 C CNN
+F 2 "" H 1500 1350 50  0000 C CNN
+F 3 "" H 1500 1350 50  0000 C CNN
+	1    1500 1350
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 1150 0    39   Input ~ 0
+UART_1_TX
+Text GLabel 1800 1150 2    39   Input ~ 0
+UART_1_RX
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A710035
+P 1500 1750
+F 0 "D?" H 1550 1650 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 1850 50  0000 C CNN
+F 2 "" H 1500 1750 50  0000 C CNN
+F 3 "" H 1500 1750 50  0000 C CNN
+	1    1500 1750
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A71003B
+P 1500 1950
+F 0 "#PWR?" H 1500 1700 50  0001 C CNN
+F 1 "GND" H 1500 1800 50  0000 C CNN
+F 2 "" H 1500 1950 50  0000 C CNN
+F 3 "" H 1500 1950 50  0000 C CNN
+	1    1500 1950
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 1750 0    39   Input ~ 0
+UART_2_TX
+Text GLabel 1800 1750 2    39   Input ~ 0
+UART_2_RX
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A710091
+P 1500 2350
+F 0 "D?" H 1550 2250 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 2450 50  0000 C CNN
+F 2 "" H 1500 2350 50  0000 C CNN
+F 3 "" H 1500 2350 50  0000 C CNN
+	1    1500 2350
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A710097
+P 1500 2550
+F 0 "#PWR?" H 1500 2300 50  0001 C CNN
+F 1 "GND" H 1500 2400 50  0000 C CNN
+F 2 "" H 1500 2550 50  0000 C CNN
+F 3 "" H 1500 2550 50  0000 C CNN
+	1    1500 2550
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 2350 0    39   Input ~ 0
+UART_3_TX
+Text GLabel 1800 2350 2    39   Input ~ 0
+UART_3_RX
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A71009F
+P 1500 2950
+F 0 "D?" H 1550 2850 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 3050 50  0000 C CNN
+F 2 "" H 1500 2950 50  0000 C CNN
+F 3 "" H 1500 2950 50  0000 C CNN
+	1    1500 2950
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A7100A5
+P 1500 3150
+F 0 "#PWR?" H 1500 2900 50  0001 C CNN
+F 1 "GND" H 1500 3000 50  0000 C CNN
+F 2 "" H 1500 3150 50  0000 C CNN
+F 3 "" H 1500 3150 50  0000 C CNN
+	1    1500 3150
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 2950 0    39   Input ~ 0
+UART_4_TX
+Text GLabel 1800 2950 2    39   Input ~ 0
+UART_4_RX
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A71090A
+P 1500 3550
+F 0 "D?" H 1550 3450 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 3650 50  0000 C CNN
+F 2 "" H 1500 3550 50  0000 C CNN
+F 3 "" H 1500 3550 50  0000 C CNN
+	1    1500 3550
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A710910
+P 1500 3750
+F 0 "#PWR?" H 1500 3500 50  0001 C CNN
+F 1 "GND" H 1500 3600 50  0000 C CNN
+F 2 "" H 1500 3750 50  0000 C CNN
+F 3 "" H 1500 3750 50  0000 C CNN
+	1    1500 3750
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 3550 0    39   Input ~ 0
+RESET_PI_1
+Text GLabel 1800 3550 2    39   Input ~ 0
+RESET_PI_2
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A71094D
+P 1500 4150
+F 0 "D?" H 1550 4050 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 1500 4250 50  0000 C CNN
+F 2 "" H 1500 4150 50  0000 C CNN
+F 3 "" H 1500 4150 50  0000 C CNN
+	1    1500 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A710953
+P 1500 4350
+F 0 "#PWR?" H 1500 4100 50  0001 C CNN
+F 1 "GND" H 1500 4200 50  0000 C CNN
+F 2 "" H 1500 4350 50  0000 C CNN
+F 3 "" H 1500 4350 50  0000 C CNN
+	1    1500 4350
+	1    0    0    -1  
+$EndComp
+Text GLabel 1200 4150 0    39   Input ~ 0
+RESET_PI_3
+Text GLabel 1800 4150 2    39   Input ~ 0
+RESET_PI_4
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A711667
+P 3400 1150
+F 0 "D?" H 3450 1050 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 3400 1250 50  0000 C CNN
+F 2 "" H 3400 1150 50  0000 C CNN
+F 3 "" H 3400 1150 50  0000 C CNN
+	1    3400 1150
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A71166D
+P 3400 1350
+F 0 "#PWR?" H 3400 1100 50  0001 C CNN
+F 1 "GND" H 3400 1200 50  0000 C CNN
+F 2 "" H 3400 1350 50  0000 C CNN
+F 3 "" H 3400 1350 50  0000 C CNN
+	1    3400 1350
+	1    0    0    -1  
+$EndComp
+Text GLabel 3100 1150 0    39   Input ~ 0
+PWM_SPEED_CTRL
+Text GLabel 3700 1150 2    39   Input ~ 0
+PWM_CURRENT_CTRL
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A7116C4
+P 3400 1750
+F 0 "D?" H 3450 1650 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 3400 1850 50  0000 C CNN
+F 2 "" H 3400 1750 50  0000 C CNN
+F 3 "" H 3400 1750 50  0000 C CNN
+	1    3400 1750
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A7116CA
+P 3400 1950
+F 0 "#PWR?" H 3400 1700 50  0001 C CNN
+F 1 "GND" H 3400 1800 50  0000 C CNN
+F 2 "" H 3400 1950 50  0000 C CNN
+F 3 "" H 3400 1950 50  0000 C CNN
+	1    3400 1950
+	1    0    0    -1  
+$EndComp
+Text GLabel 3100 1750 0    39   Input ~ 0
+MOTOR_ENABLE_5
+Text GLabel 3700 1750 2    39   Input ~ 0
+MOTOR_DIRECTION_5
+$Comp
+L D_Schottky_x2_ACom_KKA D?
+U 1 1 5A7120FA
+P 3400 2350
+F 0 "D?" H 3450 2250 50  0000 C CNN
+F 1 "MMBZ9V1ALT1G" H 3400 2450 50  0000 C CNN
+F 2 "" H 3400 2350 50  0000 C CNN
+F 3 "" H 3400 2350 50  0000 C CNN
+	1    3400 2350
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 5A712100
+P 3400 2550
+F 0 "#PWR?" H 3400 2300 50  0001 C CNN
+F 1 "GND" H 3400 2400 50  0000 C CNN
+F 2 "" H 3400 2550 50  0000 C CNN
+F 3 "" H 3400 2550 50  0000 C CNN
+	1    3400 2550
+	1    0    0    -1  
+$EndComp
+Text GLabel 3100 2350 0    39   Input ~ 0
+HOST_SCL
+Text GLabel 3700 2350 2    39   Input ~ 0
+HOST_SDA
+$EndSCHEMATC
